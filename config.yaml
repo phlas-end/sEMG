@@ -1,0 +1,44 @@
+experiment:
+  name: E1
+  log_dir: runs/
+  note:
+
+data:
+  root_dir: ./DATA
+  fs: 200
+  window: 200
+  step: 50
+  channel: 16
+
+filters:
+  notch:
+    freq: 50
+    Q: 30
+  bandpass:
+    low: 20
+    high: 500
+    order: 4
+
+train:
+  epochs: 200
+  batch_size: 200
+  learning_rate: 0.001
+  weight_decay: 0.001
+  num_workers: 8
+
+labels:
+  use_restimulus: true   # <---- 是否用修正标签
+
+model:
+  conv_layers:
+    - out_channels: 32
+      kernel_size: 2
+      pool_size: 2
+    - out_channels: 64
+      kernel_size: 4
+      pool_size: 2
+    - out_channels: 64
+      kernel_size: 2
+      pool_size: null
+  fc_hidden: 1024
+  dropout: 0.25

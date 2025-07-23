@@ -1,0 +1,4 @@
+pnnx ./output_model/model_E1/E1.onnx inputshape=[1,1,200,16] fp16=1
+pnnx ./output_model/model_E2/E2.onnx inputshape=[1,1,200,16] fp16=1
+pnnx ./output_model/model_E3/E3.onnx inputshape=[1,1,200,16] fp16=1
+pnnx ./output_model/model_ALL/model_52class.onnx
