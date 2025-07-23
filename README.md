@@ -1,0 +1,2 @@
+# sEMG
+code for sEMG
