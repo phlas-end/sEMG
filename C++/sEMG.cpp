@@ -10,11 +10,11 @@ int main() {
     // 模型参数和权重路径（假设放项目根目录）
     std::string experiment_name = "E1";
 
-    //const std::string model_param = fmt::format(R"(D:\Project\sEMG\output_model\model_{}\{}.ncnn.param)", experiment_name, experiment_name);
-    //const std::string model_bin = fmt::format(R"(D:\Project\sEMG\output_model\model_{}\{}.ncnn.bin)", experiment_name, experiment_name);
+    const std::string model_param = fmt::format(R"(D:\Project\sEMG\output_model\model_{}\{}.ncnn-opt.param)", experiment_name, experiment_name);
+    const std::string model_bin = fmt::format(R"(D:\Project\sEMG\output_model\model_{}\{}.ncnn-opt.bin)", experiment_name, experiment_name);
     
-    const std::string model_param = fmt::format(R"(D:\Project\sEMG\output_model\model_{}\{}int8.param)", experiment_name, experiment_name);
-    const std::string model_bin = fmt::format(R"(D:\Project\sEMG\output_model\model_{}\{}int8.bin)", experiment_name, experiment_name);
+    // const std::string model_param = fmt::format(R"(D:\Project\sEMG\output_model\model_{}\{}int8.param)", experiment_name, experiment_name);
+    // const std::string model_bin = fmt::format(R"(D:\Project\sEMG\output_model\model_{}\{}int8.bin)", experiment_name, experiment_name);
 
     // 测试数据路径，和你导出的保持一致
     const std::string npy_x = fmt::format(R"(D:/Project/sEMG/test_data_old\{}_X.npy)", experiment_name, experiment_name);

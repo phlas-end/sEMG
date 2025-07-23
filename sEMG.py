@@ -18,7 +18,7 @@ def notch_filter(signal, fs=200, freq=50, Q=30):
     b, a = iirnotch(freq/(fs/2), Q)
     return filtfilt(b, a, signal, axis=0)
 
-def bandpass_filter(signal, fs=200, low=20, high=500, order=4):
+def bandpass_filter(signal, fs=200, low=20, high=100, order=4):
     nyq = fs / 2
     if high >= nyq:
         high = nyq * 0.99
@@ -28,7 +28,7 @@ def bandpass_filter(signal, fs=200, low=20, high=500, order=4):
 # -----------------------------
 # 数据加载
 # -----------------------------
-def load_subject_data(subject_dir, experiment, fs, filters, use_restimulus=False):
+def load_subject_data(subject_dir, experiment, fs, filters):
     emg_list = []
     label_list = []
     repetition_list = []
@@ -44,13 +44,14 @@ def load_subject_data(subject_dir, experiment, fs, filters, use_restimulus=False
         path = os.path.join(subject_dir, f)
         data = scipy.io.loadmat(path)
         emg = data['emg']
+        stimulus = data['restimulus'].flatten()
+        repetition = data['rerepetition'].flatten()
 
-        if use_restimulus:
-            stimulus = data['restimulus'].flatten()
-            repetition = data['rerepetition'].flatten()
-        else:
-            stimulus = data['stimulus'].flatten()
-            repetition = data['repetition'].flatten()
+        # 新增过滤，去掉标签为0的数据
+        mask = stimulus > 0
+        emg = emg[mask]
+        stimulus = stimulus[mask]
+        repetition = repetition[mask]
 
         # 🚀 给标签做偏移，防止重叠
         if experiment != "ALL":
@@ -74,13 +75,11 @@ def load_subject_data(subject_dir, experiment, fs, filters, use_restimulus=False
 
         emg = notch_filter(emg, fs=fs, freq=notch_freq, Q=notch_Q)
         emg = bandpass_filter(emg, fs=fs, low=bandpass_low, high=bandpass_high, order=bandpass_order)
+        # emg = (emg - np.mean(emg, axis=0)) / (np.std(emg, axis=0) + 1e-6)
 
         emg_list.append(emg)
         label_list.append(stimulus)
         repetition_list.append(repetition)
-
-    if not emg_list:
-        return None, None, None
 
     all_emg = np.vstack(emg_list)
     all_labels = np.concatenate(label_list)
@@ -109,7 +108,7 @@ def extract_samples(emg, labels, repetitions, window=200, step=20):
             current_label = labels[i]
             current_repetition = repetitions[i]
             start_idx = i
-
+#数据最后一段
     segment_emg = emg[start_idx:]
     segment_rep = repetitions[start_idx:]
     if len(segment_emg) >= window:
@@ -177,7 +176,6 @@ def main(cfg):
     window = cfg["data"]["window"]
     step = cfg["data"]["step"]
     experiment = cfg["experiment"]["name"]
-    use_restimulus = cfg["labels"]["use_restimulus"]
     note = cfg["experiment"]["note"]
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -212,10 +210,7 @@ def main(cfg):
             experiment=experiment,
             fs=fs,
             filters=cfg["filters"],
-            use_restimulus=use_restimulus
         )
-        if emg is None:
-            continue
         all_emg.append(emg)
         all_labels.append(labels)
         all_repetitions.append(repetitions)
@@ -224,11 +219,6 @@ def main(cfg):
     all_labels = np.concatenate(all_labels)
     all_repetitions = np.concatenate(all_repetitions)
 
-    # 新增过滤，去掉标签为0的数据
-    mask = all_labels > 0
-    all_emg = all_emg[mask]
-    all_labels = all_labels[mask]
-    all_repetitions = all_repetitions[mask]
 
     unique_labels = np.unique(all_labels)
     print(f"Detected gesture classes (excluding 0): {unique_labels}")
@@ -257,8 +247,6 @@ def main(cfg):
     X_train, y_train, X_test, y_test = [], [], [], []
     for c in range(num_classes):
         c_samples = samples[c]
-        if len(c_samples) == 0:
-            continue
         train_samples = [clip for clip, rep in c_samples if rep in [1,2,3,4]]
         test_samples = [clip for clip, rep in c_samples if rep in [5,6]]
 
@@ -294,7 +282,7 @@ def main(cfg):
     test_loader = DataLoader(test_ds, batch_size=cfg["train"]["batch_size"], num_workers=cfg["train"]["num_workers"])
 
     model = EMG2DCNN(
-        input_shape=(1, window, all_emg.shape[1]),
+        input_shape=(1, window, cfg["data"]["channel"]),
         model_cfg=cfg["model"],
         num_classes=num_classes
     ).to(device)
@@ -330,31 +318,32 @@ def main(cfg):
 
     writer.close()
 
-
-if __name__ == "__main__":
-    # with open("config.yaml", "r", encoding="utf-8") as f:
-    #     cfg = yaml.safe_load(f)
-    #
-    # main(cfg)
-
+def generate_qt_ncnn():
     import numpy as np
 
     # 加载原始数据
-    data = np.load('test_data_old/E1_X.npy')  # 形状 [N, C, H, W]
+    data = np.load('test_data/E1_X.npy')  # 形状 [N, C, H, W]
 
     # 创建存储目录
     import os
 
-    os.makedirs('calib_data', exist_ok=True)
+    os.makedirs('filelist_in0', exist_ok=True)
 
     # 逐样本保存为单独的.npy文件
     for i in range(data.shape[0]):
         sample = data[i]  # 获取第i个样本 [C, H, W]
-        np.save(f'calib_data/{i}.npy', sample)  # 保存为 0.npy, 1.npy, ...
+        np.save(f'filelist_in0/{i}_in0.npy', sample)  # 保存为 0.npy, 1.npy, ...
 
     print(f"已拆分 {data.shape[0]} 个样本到 calib_data/ 目录")
-    with open('calibration.txt', 'w') as f:
+    with open('filelist_in0.txt', 'w') as f:
         for i in range(data.shape[0]):
-            f.write(f'calib_data/{i}.npy\n')
+            f.write(f'filelist_in0/{i}_in0.npy\n')
 
     print("已生成 calibration.txt 文件")
+
+if __name__ == "__main__":
+    with open("config.yaml", "r", encoding="utf-8") as f:
+        cfg = yaml.safe_load(f)
+
+    main(cfg)
+
