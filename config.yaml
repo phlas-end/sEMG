@@ -1,5 +1,5 @@
 experiment:
-  name: E1
+  name: E2 #E1/E2/E2/ALL
   log_dir: runs/
   note:
 
@@ -9,6 +9,7 @@ data:
   window: 200
   step: 50
   channel: 16
+  remove_label_0: true  # 过滤标签为0的数据
 
 filters:
   notch:
@@ -38,4 +39,4 @@ model:
       kernel_size: 2
       pool_size: null
   fc_hidden: 1024
-  dropout_rate: 0
+  dropout_rate: 0.2

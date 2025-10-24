@@ -4,8 +4,8 @@ import torch
 from model import EMG2DCNN
 import yaml
 
-model_dir = r"D:\Project\sEMG\runs\E2_no_note_20250708-225008\checkpoints"
-model_epoch = "epoch_120.pt"
+model_dir = r"D:\Project\sEMG\runs\ALL_no_note_20250825-213502\checkpoints"
+model_epoch = "epoch_040.pt"
 
 cfg_path = f"{model_dir}/config.yaml"
 with open(cfg_path, "r", encoding="utf-8") as f:

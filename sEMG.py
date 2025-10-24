@@ -47,11 +47,14 @@ def load_subject_data(subject_dir, experiment, fs, filters):
         stimulus = data['restimulus'].flatten()
         repetition = data['rerepetition'].flatten()
 
-        # 新增过滤，去掉标签为0的数据
-        mask = stimulus > 0
-        emg = emg[mask]
-        stimulus = stimulus[mask]
-        repetition = repetition[mask]
+
+        
+        if cfg["data"]["remove_label_0"]:
+            # 过滤标签为0
+            mask = stimulus > 0
+            emg = emg[mask]
+            stimulus = stimulus[mask]
+            repetition = repetition[mask]
 
         # 🚀 给标签做偏移，防止重叠
         if experiment != "ALL":
@@ -61,10 +64,12 @@ def load_subject_data(subject_dir, experiment, fs, filters):
         elif "E2" in f:
             offset = 12
         elif "E3" in f:
-            offset = 12+17
+            offset = 12 + 17
         else:
             offset = 0
-        stimulus = stimulus + offset
+
+        # 标签为0的不加偏移
+        stimulus = np.where(stimulus == 0, 0, stimulus + offset)
 
         # 滤波
         notch_freq = filters["notch"]["freq"]
@@ -108,7 +113,7 @@ def extract_samples(emg, labels, repetitions, window=200, step=20):
             current_label = labels[i]
             current_repetition = repetitions[i]
             start_idx = i
-#数据最后一段
+    #数据最后一段
     segment_emg = emg[start_idx:]
     segment_rep = repetitions[start_idx:]
     if len(segment_emg) >= window:
@@ -219,9 +224,8 @@ def main(cfg):
     all_labels = np.concatenate(all_labels)
     all_repetitions = np.concatenate(all_repetitions)
 
-
     unique_labels = np.unique(all_labels)
-    print(f"Detected gesture classes (excluding 0): {unique_labels}")
+    print(f"Detected gesture classes: {unique_labels}")
 
     label_map = {label: idx for idx, label in enumerate(unique_labels)}
     mapped_labels = np.array([label_map[l] for l in all_labels])
@@ -241,7 +245,7 @@ def main(cfg):
         step=step
     )
 
-    num_classes = len(unique_labels)
+    num_classes = 5 #len(unique_labels)代表该实验所有类别，填写数字则表示取前n个类别
     print(f"Number of classes: {num_classes}")
 
     X_train, y_train, X_test, y_test = [], [], [], []
