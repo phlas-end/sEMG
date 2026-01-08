@@ -148,6 +148,7 @@ def train_epoch(model, loader, optimizer, criterion, device):
     for X, y in loader:
         X, y = X.to(device), y.to(device)
         optimizer.zero_grad()
+        print(X.shape)
         out = model(X)
         loss = criterion(out, y)
         loss.backward()
@@ -171,6 +172,55 @@ def eval_epoch(model, loader, criterion, device):
             correct += (pred == y).sum().item()
             total += y.size(0)
     return total_loss / len(loader), correct / total
+
+def load_npy_dataset(folder):
+    """
+    自动读取 gesture_X.npy 文件，
+    提取 X 作为类别，从 1 开始。
+    """
+    X_list = []
+    y_list = []
+
+    files = sorted([f for f in os.listdir(folder) if f.endswith(".npy")])
+
+    for f in files:
+        path = os.path.join(folder, f)
+
+        # 支持 gesture_1.npy / gesture_2.npy / gesture_10.npy
+        if "gesture_" in f:
+            try:
+                label = int(f.split("gesture_")[1].split(".")[0])
+            except:
+                print(f"⚠ 跳过无法解析类别的文件：{f}")
+                continue
+        else:
+            print(f"⚠ 跳过非 gesture 文件：{f}")
+            continue
+
+        data = np.load(path)  # shape (N,8,200)
+
+        if data.ndim != 3 or data.shape[1:] != (8, 200):
+            print(f"⚠ 跳过形状异常文件：{f} shape={data.shape}")
+            continue
+
+        X_list.append(data)
+        y_list.append(np.full((data.shape[0],), label-1))
+
+        print(f"✔ 加载 {f}: 类别 {label}, 样本数 {data.shape[0]}")
+
+    if len(X_list) == 0:
+        raise ValueError("❌ 目录下没有有效 gesture_X.npy 文件！")
+
+    X_all = np.concatenate(X_list, axis=0)
+    y_all = np.concatenate(y_list, axis=0)
+
+    print(f"\n📦 总样本数：{X_all.shape[0]}")
+    print(f"📐 X shape = {X_all.shape}")
+    print(f"📐 y shape = {y_all.shape}")
+
+    return X_all, y_all
+
+
 
 # -----------------------------
 # 主函数
@@ -209,86 +259,130 @@ def main(cfg):
     print(f"Selected experiment: {experiment}")
     print(f"Found subjects: {subjects}")
 
-    for subj in subjects:
-        emg, labels, repetitions = load_subject_data(
-            os.path.join(root_dir, subj),
-            experiment=experiment,
-            fs=fs,
-            filters=cfg["filters"],
-        )
-        all_emg.append(emg)
-        all_labels.append(labels)
-        all_repetitions.append(repetitions)
+    # for subj in subjects:
+    #     emg, labels, repetitions = load_subject_data(
+    #         os.path.join(root_dir, subj),
+    #         experiment=experiment,
+    #         fs=fs,
+    #         filters=cfg["filters"],
+    #     )
+    #     all_emg.append(emg)
+    #     all_labels.append(labels)
+    #     all_repetitions.append(repetitions)
+    #
+    # all_emg = np.vstack(all_emg)
+    # all_labels = np.concatenate(all_labels)
+    # all_repetitions = np.concatenate(all_repetitions)
+    #
+    # unique_labels = np.unique(all_labels)
+    # print(f"Detected gesture classes: {unique_labels}")
+    #
+    # label_map = {label: idx for idx, label in enumerate(unique_labels)}
+    # mapped_labels = np.array([label_map[l] for l in all_labels])
+    #
+    # from collections import Counter
+    #
+    # label_counts = Counter(mapped_labels)
+    # print("mapped_labels 中各类别样本数量：")
+    # for label, count in label_counts.items():
+    #     print(f"类别 {label}: {count} 个样本")
+    #
+    # samples = extract_samples(
+    #     all_emg,
+    #     mapped_labels,
+    #     all_repetitions,
+    #     window=window,
+    #     step=step
+    # )
+    #
+    # num_classes = 5 #len(unique_labels)代表该实验所有类别，填写数字则表示取前n个类别
+    # print(f"Number of classes: {num_classes}")
+    #
+    # X_train, y_train, X_test, y_test = [], [], [], []
+    # for c in range(num_classes):
+    #     c_samples = samples[c]
+    #     train_samples = [clip for clip, rep in c_samples if rep in [1,2,3,4]]
+    #     test_samples = [clip for clip, rep in c_samples if rep in [5,6]]
+    #
+    #     if len(train_samples) == 0 or len(test_samples) == 0:
+    #         print(f"⚠️ Class {c} skipped due to insufficient samples")
+    #         continue
+    #
+    #     X_train += train_samples
+    #     y_train += [c] * len(train_samples)
+    #     X_test += test_samples
+    #     y_test += [c] * len(test_samples)
+    #
+    # if len(X_train) == 0 or len(X_test) == 0:
+    #     print("数据不足，无法训练")
+    #     return
+    #
+    # train_ds = EMGDataset(X_train, y_train)
+    # test_ds = EMGDataset(X_test, y_test)
+    # # 保存测试数据供C++端验证
+    # X_test_tensor = test_ds.X.cpu().numpy()
+    # y_test_tensor = test_ds.y.cpu().numpy()
+    #
+    # export_dir = r"D:\Project\sEMG\test_data"
+    # exp_name = cfg["experiment"]["name"]
+    # os.makedirs(export_dir, exist_ok=True)
+    #
+    # np.save(os.path.join(export_dir, f"{exp_name}_X.npy"), X_test_tensor)
+    # np.save(os.path.join(export_dir, f"{exp_name}_y.npy"), y_test_tensor)
+    #
+    # print(f"✅ 测试数据已分别导出: {export_dir}")
+    #
+    # train_loader = DataLoader(train_ds, batch_size=cfg["train"]["batch_size"], num_workers=cfg["train"]["num_workers"], shuffle=True)
+    # test_loader = DataLoader(test_ds, batch_size=cfg["train"]["batch_size"], num_workers=cfg["train"]["num_workers"])
+    #
+    # print("🔍 使用 npy 数据模式")
+    # X_all, y_all = load_npy_dataset(cfg["data"]["root_dir"])
+    #
+    # # 转换到你的 Dataset 结构
+    # # X_all shape: (N,8,200) → (N,1,200,8)
+    # X_all = np.transpose(X_all, (0, 2, 1))[:, None, :, :]  # (N,1,200,8)
+    #
+    # # 随便切 train/test
+    # from sklearn.model_selection import train_test_split
+    # X_train, X_test, y_train, y_test = train_test_split(
+    #     X_all, y_all, test_size=0.2, stratify=y_all, random_state=42
+    # )
+    #
+    # train_ds = EMGDataset(X_train, y_train)
+    # test_ds = EMGDataset(X_test, y_test)
+    #
+    # train_loader = DataLoader(train_ds, batch_size=cfg["train"]["batch_size"], shuffle=True)
+    # test_loader = DataLoader(test_ds, batch_size=cfg["train"]["batch_size"])
+    #
+    ################
+    print("🔍 使用 npy 数据模式")
+    X_all, y_all = load_npy_dataset(cfg["data"]["root_dir"])
 
-    all_emg = np.vstack(all_emg)
-    all_labels = np.concatenate(all_labels)
-    all_repetitions = np.concatenate(all_repetitions)
-
-    unique_labels = np.unique(all_labels)
-    print(f"Detected gesture classes: {unique_labels}")
-
-    label_map = {label: idx for idx, label in enumerate(unique_labels)}
-    mapped_labels = np.array([label_map[l] for l in all_labels])
-
-    from collections import Counter
-
-    label_counts = Counter(mapped_labels)
-    print("mapped_labels 中各类别样本数量：")
-    for label, count in label_counts.items():
-        print(f"类别 {label}: {count} 个样本")
-
-    samples = extract_samples(
-        all_emg,
-        mapped_labels,
-        all_repetitions,
-        window=window,
-        step=step
+    # 转换到你的 Dataset 结构
+    # X_all shape: (N,8,200) → (N,1,200,8)
+    X_all = np.transpose(X_all, (0, 2, 1))[:, None, :, :]  # (N,1,200,8)
+    X_all = X_all.squeeze(1)
+    # 随便切 train/test
+    from sklearn.model_selection import train_test_split
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_all, y_all, test_size=0.2, stratify=y_all, random_state=42
     )
-
-    num_classes = 5 #len(unique_labels)代表该实验所有类别，填写数字则表示取前n个类别
-    print(f"Number of classes: {num_classes}")
-
-    X_train, y_train, X_test, y_test = [], [], [], []
-    for c in range(num_classes):
-        c_samples = samples[c]
-        train_samples = [clip for clip, rep in c_samples if rep in [1,2,3,4]]
-        test_samples = [clip for clip, rep in c_samples if rep in [5,6]]
-
-        if len(train_samples) == 0 or len(test_samples) == 0:
-            print(f"⚠️ Class {c} skipped due to insufficient samples")
-            continue
-
-        X_train += train_samples
-        y_train += [c] * len(train_samples)
-        X_test += test_samples
-        y_test += [c] * len(test_samples)
-
-    if len(X_train) == 0 or len(X_test) == 0:
-        print("数据不足，无法训练")
-        return
-
-    train_ds = EMGDataset(X_train, y_train)
-    test_ds = EMGDataset(X_test, y_test)
-    # 保存测试数据供C++端验证
-    X_test_tensor = test_ds.X.cpu().numpy()
-    y_test_tensor = test_ds.y.cpu().numpy()
-
-    export_dir = r"D:\Project\sEMG\test_data"
+    export_dir = "test_data"
     exp_name = cfg["experiment"]["name"]
     os.makedirs(export_dir, exist_ok=True)
 
-    np.save(os.path.join(export_dir, f"{exp_name}_X.npy"), X_test_tensor)
-    np.save(os.path.join(export_dir, f"{exp_name}_y.npy"), y_test_tensor)
+    np.save(os.path.join(export_dir, f"{exp_name}_X.npy"), X_test)
+    np.save(os.path.join(export_dir, f"{exp_name}_y.npy"), y_test)
+    train_ds = EMGDataset(X_train, y_train)
+    test_ds = EMGDataset(X_test, y_test)
 
-    print(f"✅ 测试数据已分别导出: {export_dir}")
-
-    train_loader = DataLoader(train_ds, batch_size=cfg["train"]["batch_size"], num_workers=cfg["train"]["num_workers"], shuffle=True)
-    test_loader = DataLoader(test_ds, batch_size=cfg["train"]["batch_size"], num_workers=cfg["train"]["num_workers"])
+    train_loader = DataLoader(train_ds, batch_size=cfg["train"]["batch_size"], shuffle=True)
+    test_loader = DataLoader(test_ds, batch_size=cfg["train"]["batch_size"])
 
     model = EMG2DCNN(
         input_shape=(1, window, cfg["data"]["channel"]),
         model_cfg=cfg["model"],
-        num_classes=num_classes
+        num_classes=5
     ).to(device)
 
     criterion = nn.CrossEntropyLoss()

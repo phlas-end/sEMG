@@ -25,7 +25,7 @@ def collate_fn2(batch):
 # -------- 主流程 --------
 if __name__ == '__main__':
     BATCH_SIZE = 32
-    INPUT_SHAPE = [1, 200, 16]   # ⚠️ 和你的模型输入保持一致
+    INPUT_SHAPE = [1, 200, 8]   # ⚠️ 和你的模型输入保持一致
     TARGET = "esp32s3"
     NUM_OF_BITS = 8
     ESPDL_MODEL_PATH = "./s3/class_3/touch_recognition_from_pt.espdl"
@@ -50,7 +50,7 @@ if __name__ == '__main__':
         model_cfg=cfg["model"],
         num_classes=5
     )
-    model.load_state_dict(torch.load(r"D:\Project\sEMG\runs\E2_no_note_20251009-001206\checkpoints\epoch_050.pt", map_location=DEVICE))
+    model.load_state_dict(torch.load(r"D:\Project\emg-esp32\runs\E2_no_note_20251226-133444\checkpoints\epoch_100.pt", map_location=DEVICE))
     model.to(DEVICE)
     model.eval()
 

@@ -8,7 +8,7 @@ data:
   fs: 200
   window: 200
   step: 50
-  channel: 16
+  channel: 8
   remove_label_0: true  # 过滤标签为0的数据
 
 filters:
@@ -33,7 +33,7 @@ model:
       kernel_size: 2
       pool_size: 2
     - out_channels: 64
-      kernel_size: 4
+      kernel_size: 2
       pool_size: 2
     - out_channels: 64
       kernel_size: 2

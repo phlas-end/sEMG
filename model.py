@@ -23,7 +23,7 @@ class EMG2DCNN(nn.Module):
             self.bns.append(bn)
 
             if pool_size:
-                pool = nn.MaxPool2d(pool_size)
+                pool = nn.MaxPool2d(kernel_size=(pool_size,1))
             else:
                 pool = None
             self.pools.append(pool)
