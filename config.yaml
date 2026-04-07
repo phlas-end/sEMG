@@ -1,15 +1,16 @@
 experiment:
-  name: E2 #E1/E2/E2/ALL
+  name: E2
+  num_classes: 5
   log_dir: runs/
   note:
 
 data:
-  root_dir: ./DATA
+  root_dir: ./data
   fs: 200
   window: 200
   step: 50
   channel: 8
-  remove_label_0: true  # 过滤标签为0的数据
+  remove_label_0: true
 
 filters:
   notch:
@@ -17,7 +18,7 @@ filters:
     Q: 30
   bandpass:
     low: 20
-    high: 500
+    high: 100
     order: 4
 
 train:
@@ -25,7 +26,29 @@ train:
   batch_size: 200
   learning_rate: 0.001
   weight_decay: 0.001
-  num_workers: 8
+  num_workers: 0
+  test_size: 0.2
+  random_seed: 42
+
+collect:
+  train_output_dir: ./data
+  test_output_dir: ./test_data
+  apply_filters: false
+  guided:
+    gestures: [1, 2, 3, 4, 5]
+    repetitions: 50
+    action_seconds: 1.0
+    rest_seconds: 1.0
+
+myo:
+  module_root: ./myo_support
+  dll_root: ./myo_support/bin
+  sdk_path:
+  connect_timeout: 15.0
+
+deploy:
+  server_ip: 192.168.3.9
+  server_port: 3333
 
 model:
   conv_layers:

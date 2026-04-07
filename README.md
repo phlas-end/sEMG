@@ -1,99 +1,281 @@
-# sEMG 信号处理与模型部署项目
+# emg-esp32
 
-## 项目概述
-本项目是一个完整的表面肌电信号(sEMG)处理系统，实现了从模型训练到ESP32设备部署的全流程解决方案。
+## 项目简介
 
-## 版本控制文件结构
-当前已纳入版本控制的文件包括：
-### 1. 核心Python文件
+这个项目用于完成 5 类手势的表面肌电识别，覆盖了从 Myo 手环采集、离线训练、模型导出，到 ESP32 实时推理和实验评估的完整流程。
+
+当前方案的核心特点：
+
+- 使用 Myo 手环采集 8 通道 EMG
+- 训练输入统一为 `200 x 8` 的时间窗口
+- 默认采样率为 `200 Hz`
+- 支持离线训练与在线实时识别
+- 支持把模型部署到 ESP32 做实时推理
+
+## 当前工作流
+
+完整流程如下：
+
+1. 使用 Myo 手环采集手势数据
+2. 将采集得到的动作段切分成训练窗口
+3. 使用训练数据离线训练模型
+4. 导出模型到 ESP32
+5. 使用保存好的测试集回放评估 ESP32
+6. 使用 Myo 实时驱动 ESP32 做在线识别
+
+## 主要入口文件
+
+- `myo_guided_collect.py`
+  作用：按实验协议进行 Myo 引导采集
+- `train_emg_model.py`
+  作用：读取 `data/gesture_*.npy` 并训练模型
+- `export_model_to_esp.py`
+  作用：把训练好的模型导出为 ESP32 部署格式
+- `esp32_replay_eval.py`
+  作用：把保存好的测试窗口发送给 ESP32，统计精度
+- `myo_realtime_infer.py`
+  作用：直接从 Myo 采实时 EMG，实时发送给 ESP32 推理
+
+## 关键支持文件
+
+- `myo_runtime.py`
+  作用：Myo 设备输入层，负责连接 Myo、接收 EMG 帧
+- `emg_pipeline.py`
+  作用：窗口切分、滤波、数据布局转换、实验结果保存
+- `model.py`
+  作用：PyTorch 模型定义
+- `config.yaml`
+  作用：全局配置
+- `C++/main/app_main.cpp`
+  作用：ESP32 侧接收输入并执行推理
+
+## Myo 依赖
+
+项目已经把 Myo 运行依赖内置到仓库里，不再依赖外部 `D:/Project/MYO/myo-tools` 目录。
+
+内置位置：
+
+- `myo_support/myo`
+- `myo_support/bin/myo64.dll`
+- `myo_support/bin/myo32.dll`
+
+因此当前项目默认会优先使用项目内的 Myo 运行时。
+
+## Python 环境
+
+当前默认使用这个 conda 环境：
+
+- `C:\Users\phlas\miniconda3\envs\myo\python.exe`
+
+推荐执行方式：
+
+```powershell
+C:\Users\phlas\miniconda3\envs\myo\python.exe myo_guided_collect.py
 ```
-├── model.py             # 模型定义文件
-├── sEMG.py             # 主程序实现
-├── model2esp.py        # 模型转ESP格式工具
-├── pt2onnx.py          # PyTorch模型转ONNX工具
-└── wifi_connect.py     # WiFi连接实用工具
+
+## 配置说明
+
+主要配置在 `config.yaml`。
+
+### 数据参数
+
+- `data.fs = 200`
+  含义：采样率 200Hz
+- `data.window = 200`
+  含义：每个样本窗口长度为 200 帧
+- `data.step = 50`
+  含义：滑窗步长 50 帧
+- `data.channel = 8`
+  含义：Myo 的 8 通道 EMG
+
+### 采集参数
+
+- `collect.guided.gestures = [1, 2, 3, 4, 5]`
+- `collect.guided.repetitions = 50`
+- `collect.guided.action_seconds = 1.0`
+- `collect.guided.rest_seconds = 1.0`
+
+这表示默认实验协议是：
+
+- 共 5 个手势
+- 每个手势采 50 次
+- 每次动作保持 1 秒
+- 每次动作之间休息 1 秒
+
+### Myo 参数
+
+- `myo.module_root = ./myo_support`
+- `myo.dll_root = ./myo_support/bin`
+- `myo.connect_timeout = 15.0`
+
+### 部署参数
+
+- `deploy.server_ip`
+- `deploy.server_port`
+
+这两个参数用于 PC 和 ESP32 通信。
+
+## 数据格式
+
+### 原始动作段
+
+采集时先记录一整段连续动作数据，形状为：
+
+- `(frames, 8)`
+
+### 训练窗口
+
+切分后统一为：
+
+- `(N, 200, 8)`
+
+其中：
+
+- `N` 是窗口个数
+- `200` 是时间长度
+- `8` 是通道数
+
+模型输入时会进一步变成：
+
+- `(N, 1, 200, 8)`
+
+## 采集流程
+
+使用：
+
+```powershell
+C:\Users\phlas\miniconda3\envs\myo\python.exe myo_guided_collect.py
 ```
 
-### 2. 配置文件
+采集脚本会做这些事：
+
+1. 等待 Myo 连接
+2. 按手势顺序提示你开始实验
+3. 每次重复先休息，再准备，再执行动作
+4. 记录休息段和动作段原始数据
+5. 动作段结束后再切分成窗口
+6. 保存到 `data/gesture_X.npy`
+
+输出内容包括：
+
+- `data/gesture_1.npy` 到 `data/gesture_5.npy`
+- 每次 session 的原始段备份
+- `protocol.csv`
+- `session.json`
+
+说明：
+
+- 当前设置下，`1 秒动作` 配合 `window=200`，通常每次重复只产生 1 个完整窗口
+- 如果以后想每次重复生成更多窗口，可以把动作时长增加到 `1.5` 到 `2.0` 秒
+
+## 训练流程
+
+使用：
+
+```powershell
+C:\Users\phlas\miniconda3\envs\myo\python.exe train_emg_model.py
 ```
-├── config.yaml          # 项目配置文件
-├── launch_tensorboard.bat  # TensorBoard启动脚本
-└── onnx2ncnn.txt       # ONNX转NCNN配置说明
+
+训练脚本会：
+
+1. 从 `data/gesture_*.npy` 读取样本
+2. 划分训练集和测试集
+3. 训练 CNN 模型
+4. 保存模型到 `runs/.../checkpoints`
+5. 导出一份测试集到 `test_data/`
+
+典型输出：
+
+- `runs/<experiment>/checkpoints/best.pt`
+- `runs/<experiment>/checkpoints/epoch_XXX.pt`
+- `test_data/<experiment>_X.npy`
+- `test_data/<experiment>_y.npy`
+
+## 模型导出流程
+
+使用：
+
+```powershell
+C:\Users\phlas\miniconda3\envs\myo\python.exe export_model_to_esp.py
 ```
 
-### 3. ESP32实现 (C++/)
-```
-C++/
-├── CMakeLists.txt                    # 主CMake配置
-├── partitions.csv                    # 分区表配置
-├── sdkconfig.defaults                # 默认SDK配置
-├── sdkconfig.defaults.esp32p4        # ESP32-P4配置
-├── sdkconfig.defaults.esp32s3        # ESP32-S3配置
-└── main/
-    ├── CMakeLists.txt               # 组件CMake配置
-    ├── app_main.cpp                 # 应用主程序
-    ├── idf_component.yml            # 组件配置
-    └── models/                      # 模型文件
-        ├── p4/
-        │   └── model.espdl         # ESP32-P4模型
-        └── s3/
-            ├── model.espdl         # ESP32-S3模型
-            └── sEMG.espdl         # sEMG专用模型
+这个脚本用于把训练结果转换为 ESP32 可部署模型。
+
+## ESP32 回放评估流程
+
+使用：
+
+```powershell
+C:\Users\phlas\miniconda3\envs\myo\python.exe esp32_replay_eval.py
 ```
 
-## 主要功能模块
+这个脚本的输入不是实时 Myo，而是已经保存好的测试窗口。
 
-### 1. Python核心模块
-- `model.py`: 定义了深度学习模型架构
-- `sEMG.py`: 实现主要的训练和处理逻辑
-- `model2esp.py`: 将训练好的模型转换为ESP设备可用格式
-- `pt2onnx.py`: 实现PyTorch模型到ONNX格式的转换
-- `wifi_connect.py`: 提供WiFi连接功能支持
+它会：
 
-### 2. ESP32部署模块
-- 完整的ESP32应用实现
-- 支持ESP32-S3和ESP32-P4两种型号
-- 包含特定模型部署文件（.espdl格式）
-- 完整的构建系统配置（CMake，分区表等）
+1. 读取 `test_data/*.npy`
+2. 把每个窗口发给 ESP32
+3. 接收 ESP32 返回的类别
+4. 统计正确率
+5. 保存实验 CSV
 
-### 3. 工具支持
-- TensorBoard集成（通过launch_tensorboard.bat）
-- 模型转换工具链
-- SDK配置文件
+适合用于：
 
-## 核心功能
-1. 深度学习模型训练
-2. 多平台模型转换
-   - PyTorch → ONNX
-   - ONNX → ESP专用格式
-3. ESP32设备支持
-   - ESP32-S3适配
-   - ESP32-P4适配
-4. 开发工具支持
-   - TensorBoard可视化
-   - WiFi连接工具
-   - 构建系统配置
+- 板端精度验证
+- 量化前后对比
+- 固定测试集复现实验
 
-## 使用说明
-1. 环境配置
-   - 参考`config.yaml`进行基本配置
-   - 确保ESP-IDF环境已正确设置（用于ESP32开发）
+## 在线实时识别流程
 
-2. 模型开发流程
-   - 使用`model.py`定义模型结构
-   - 通过`sEMG.py`进行模型训练
-   - 使用`launch_tensorboard.bat`监控训练过程
+使用：
 
-3. 模型转换
-   - 使用`pt2onnx.py`将PyTorch模型转换为ONNX格式
-   - 使用`model2esp.py`将模型转换为ESP设备格式
-   - 参考`onnx2ncnn.txt`了解更多转换细节
+```powershell
+C:\Users\phlas\miniconda3\envs\myo\python.exe myo_realtime_infer.py
+```
 
-4. ESP32部署
-   - 根据目标设备选择适当的`sdkconfig.defaults`
-   - 使用CMake进行项目构建
-   - 将转换后的模型放置在正确的目录下
-   - 编译并烧录代码到设备
+这个脚本会：
 
-## 贡献者
-- phlas-end
+1. 直接连接 Myo
+2. 连续采 EMG
+3. 切成窗口
+4. 发给 ESP32
+5. 接收预测结果
+6. 做简单投票平滑
+7. 保存实验日志
+
+它和 `esp32_replay_eval.py` 的区别是：
+
+- `esp32_replay_eval.py` 用保存好的测试集做离线回放评估
+- `myo_realtime_infer.py` 用 Myo 实时数据做在线识别
+
+## 文件命名说明
+
+当前入口脚本已经统一成更直白的风格：
+
+- `myo_guided_collect.py`
+- `train_emg_model.py`
+- `export_model_to_esp.py`
+- `esp32_replay_eval.py`
+- `myo_realtime_infer.py`
+
+这样从名字上就能直接看出用途。
+
+## 常用命令
+
+```powershell
+C:\Users\phlas\miniconda3\envs\myo\python.exe myo_guided_collect.py
+C:\Users\phlas\miniconda3\envs\myo\python.exe train_emg_model.py
+C:\Users\phlas\miniconda3\envs\myo\python.exe export_model_to_esp.py
+C:\Users\phlas\miniconda3\envs\myo\python.exe esp32_replay_eval.py
+C:\Users\phlas\miniconda3\envs\myo\python.exe myo_realtime_infer.py
+```
+
+## 目前建议
+
+- 先按默认协议完成 5 个手势的数据采集
+- 先用 `esp32_replay_eval.py` 做稳定精度验证
+- 板端精度稳定后，再重点看 `myo_realtime_infer.py` 的实时体验
+
+## 备注
+
+如果以后要扩展手势数、修改动作时长、调整窗口大小，优先改 `config.yaml`，不要直接改各个脚本里的常量。

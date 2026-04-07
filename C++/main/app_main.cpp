@@ -36,7 +36,7 @@ void tcp_server_task(void *)
     listen(listen_sock, 1);
     ESP_LOGI(TAG, "TCP server listening on port %d", PORT);
 
-    const int input_size = 1*200*16;        // 输入元素数
+    const int input_size = 1 * 200 * 8;     // input elements: (1, 200, 8)
     const int input_bytes = input_size * sizeof(float);
 
     // ===== 全局统计变量 =====
