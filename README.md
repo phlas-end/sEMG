@@ -199,3 +199,39 @@ C:\Users\phlas\miniconda3\envs\myo\python.exe python_realtime_infer.py --device 
 - 针对混淆类别补采样本，而不是盲目增大模型。
 - 保持当前输入缩放和量化校准流程一致，避免训练、导出、板端回放三者输入分布漂移。
 - 实时实验时先看 `python_realtime_infer.py` 和 `myo_realtime_infer.py` 是否在同一动作上同时混淆，再判断是模型问题还是量化/板端问题。
+
+## 报告展示材料索引
+
+以下文件适合在论文、答辩或阶段报告里引用。注意：`runs/`、`data/`、`test_data/` 默认被 `.gitignore` 忽略，属于本机实验产物；仓库里会保留源码、配置、README 和当前板端 `sEMG.espdl`。
+
+| 用途 | 路径 | 说明 |
+| --- | --- | --- |
+| 项目流程说明 | `README.md` | 项目介绍、操作流程、当前结果汇总 |
+| AI 接手说明 | `AGENTS.md` | 给后续 AI/协作者看的上下文和注意事项 |
+| 当前配置 | `config.yaml` | 窗口、通道、轻量模型、静息态、量化校准配置 |
+| 模型结构源码 | `model.py` | 当前轻量化 CNN 结构，包含 `final_pool` |
+| 训练入口 | `train_emg_model.py` | 离线训练与测试集导出 |
+| 导出入口 | `export_model_to_esp.py` | PyTorch -> ESPDL int8 导出 |
+| 板端回放评估 | `esp32_replay_eval.py` | 固定测试集发送到 ESP32 统计准确率 |
+| 板端推理代码 | `C++/main/app_main.cpp` | ESP32-S3 TCP 接收和推理逻辑 |
+| 当前板端模型 | `C++/main/models/s3/sEMG.espdl` | 已刷入并验证过的 int8 模型，约 `3.19 MB` |
+| 最佳 PyTorch 模型 | `runs/E2_light_final_pool_48x1_20260409-222302/checkpoints/best.pt` | 本机最佳轻量模型，PyTorch 验证集 `91.58%` |
+| 最佳 int8 归档 | `runs/candidates/best_int8_20260410_011824/` | 本机归档，包含 `best.pt`、`sEMG.espdl`、配置和回放结果 |
+| 最佳回放结果 | `runs/experiments/E2_light_replay_20260410-011824.csv` | ESP32 int8 固定测试集回放，`79.46% (236/297)` |
+| 训练数据 | `data/gesture_*.npy` | 5 类手势采集后的窗口数据，本机保存 |
+| 测试数据 | `test_data/E2_light_X.npy`、`test_data/E2_light_y.npy` | 当前实验对应测试集，本机保存 |
+
+报告里建议优先展示这几组数字：
+
+| 指标 | 数值 |
+| --- | --- |
+| 手势类别数 | `5` |
+| 输入窗口 | `200 x 8` |
+| 采样率 | `200 Hz` |
+| 总窗口样本数 | `1482` |
+| PyTorch 验证集准确率 | `91.58% (272/297)` |
+| ESP32 int8 回放准确率 | `79.46% (236/297)` |
+| 板端模型大小 | 约 `3.19 MB` |
+
+历史探索文件如 `pt2onnx.py`、`onnx2ncnn.txt`、`launch_tensorboard.bat` 不属于当前推荐主流程，报告里不建议引用。
+
