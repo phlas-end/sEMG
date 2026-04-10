@@ -7,7 +7,7 @@ from datetime import datetime
 import numpy as np
 import yaml
 
-from emg_pipeline import apply_filters, segment_continuous_signal
+from emg_pipeline import apply_filters, is_rest_window, scale_signal, segment_continuous_signal
 from myo_runtime import MyoEMGCollector
 
 
@@ -69,12 +69,24 @@ def main():
 
         for window in windows:
             sample = apply_filters(window, cfg) if cfg["collect"].get("apply_filters", False) else window
-            pred = send_window(server_ip, server_port, sample)
+            is_rest, metrics = is_rest_window(sample, cfg)
+            if is_rest:
+                pred = "rest"
+            else:
+                pred = send_window(server_ip, server_port, scale_signal(sample, cfg))
+
             vote_queue.append(pred)
             stable_pred = Counter(vote_queue).most_common(1)[0][0]
             window_index += 1
 
-            print(f"window={window_index}, pred={pred}, stable_pred={stable_pred}")
+            if metrics is None:
+                print(f"window={window_index}, pred={pred}, stable_pred={stable_pred}")
+            else:
+                print(
+                    f"window={window_index}, pred={pred}, stable_pred={stable_pred}, "
+                    f"abs_mean={metrics['abs_mean']:.3f}, rms={metrics['rms']:.3f}, "
+                    f"active_channels={metrics['active_channels']}"
+                )
             rows.append(
                 {
                     "window_index": window_index,

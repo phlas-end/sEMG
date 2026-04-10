@@ -6,7 +6,7 @@ from datetime import datetime
 import numpy as np
 import yaml
 
-from emg_pipeline import ensure_window_channel_layout, load_gesture_dataset, save_experiment_csv
+from emg_pipeline import ensure_window_channel_layout, load_gesture_dataset, save_experiment_csv, scale_signal
 
 
 def send_sample(server_ip, server_port, sample):
@@ -42,6 +42,7 @@ def main():
         X = ensure_window_channel_layout(X, channels=channels, window=window).astype(np.float32, copy=False)
     else:
         X, y = load_gesture_dataset(cfg["data"]["root_dir"], channels=channels, window=window, dtype=np.float32)
+        X = scale_signal(X, cfg)
 
     server_ip = args.server_ip or cfg["deploy"]["server_ip"]
     server_port = args.server_port or cfg["deploy"]["server_port"]

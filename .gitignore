@@ -4,3 +4,14 @@ runs/
 test_data/
 data/
 DATA/
+.venv-espdl-export/
+C++/build/
+C++/managed_components/
+C++/sdkconfig
+C++/sdkconfig.old
+C++/dependencies.lock.*
+C++/main/models/s3/*.onnx
+C++/main/models/s3/*.json
+C++/main/models/s3/*.info
+tmp_configs/
+tmp_calib_trainonly/

@@ -1,8 +1,8 @@
 experiment:
-  name: E2
+  name: E2_light
   num_classes: 5
   log_dir: runs/
-  note:
+  note: final_pool_48x1
 
 data:
   root_dir: ./data
@@ -10,6 +10,7 @@ data:
   window: 200
   step: 50
   channel: 8
+  input_scale: 128.0
   remove_label_0: true
 
 filters:
@@ -49,6 +50,14 @@ myo:
 deploy:
   server_ip: 192.168.3.9
   server_port: 3333
+  rest_gate:
+    enabled: true
+    abs_mean_threshold: 2.3
+    rms_threshold: 3.5
+    channel_abs_threshold: 1.5
+    min_active_channels: 2
+  quantization:
+    samples_per_class:
 
 model:
   conv_layers:
@@ -61,5 +70,6 @@ model:
     - out_channels: 64
       kernel_size: 2
       pool_size: null
+  final_pool: [48, 1]
   fc_hidden: 1024
   dropout_rate: 0.2

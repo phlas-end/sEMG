@@ -37,6 +37,47 @@ def apply_filters(signal, cfg):
     return filtered
 
 
+def compute_window_activity(window):
+    window = np.asarray(window, dtype=np.float32)
+    if window.ndim != 2:
+        raise ValueError(f"Expected window shape (frames, channels), got {window.shape}")
+
+    channel_abs_mean = np.mean(np.abs(window), axis=0)
+    return {
+        "abs_mean": float(np.mean(channel_abs_mean)),
+        "rms": float(np.sqrt(np.mean(np.square(window)))),
+        "active_channels": int(np.sum(channel_abs_mean > 0)),
+        "channel_abs_mean": channel_abs_mean,
+    }
+
+
+def is_rest_window(window, cfg):
+    gate_cfg = cfg.get("deploy", {}).get("rest_gate", {})
+    if not gate_cfg.get("enabled", False):
+        return False, None
+
+    metrics = compute_window_activity(window)
+    channel_threshold = gate_cfg.get("channel_abs_threshold", 1.5)
+    metrics["active_channels"] = int(np.sum(metrics["channel_abs_mean"] >= channel_threshold))
+
+    is_rest = (
+        metrics["abs_mean"] < gate_cfg.get("abs_mean_threshold", 2.3)
+        and metrics["rms"] < gate_cfg.get("rms_threshold", 3.5)
+        and metrics["active_channels"] < gate_cfg.get("min_active_channels", 2)
+    )
+    return is_rest, metrics
+
+
+def scale_signal(signal, cfg):
+    scale = float(cfg.get("data", {}).get("input_scale", 1.0))
+    signal = np.asarray(signal, dtype=np.float32)
+    if scale == 0:
+        raise ValueError("data.input_scale must not be 0")
+    if scale == 1.0:
+        return signal
+    return signal / scale
+
+
 def ensure_window_channel_layout(data, channels, window):
     if data.ndim == 2:
         if data.shape == (window, channels):

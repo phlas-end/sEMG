@@ -10,7 +10,7 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
 
-from emg_pipeline import load_gesture_dataset
+from emg_pipeline import load_gesture_dataset, scale_signal
 from model import EMG2DCNN
 
 
@@ -111,6 +111,7 @@ def main(cfg):
         window=window,
         dtype=np.float32,
     )
+    X_all = scale_signal(X_all, cfg)
 
     X_train, X_test, y_train, y_test = train_test_split(
         X_all,
