@@ -12,5 +12,11 @@
     "samples": 297,
     "source": "runs/candidates/best_int8_20260410_011824/replay.csv"
   },
-  "six_class_board_accuracy": null
+  "six_class_board_accuracy": null,
+  "historical_firmware_build": {
+    "passed": true,
+    "idf": "5.5.0",
+    "esp_dl": "3.3.0",
+    "reference_target": "esp32s3"
+  }
 }

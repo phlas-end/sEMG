@@ -1,7 +1,7 @@
 {
   "date": "2026-10-09",
   "deleted_files": 21,
-  "freed_bytes": 75317833,
+  "freed_bytes": 492569111,
   "preserved_artifacts_sha256_verified": 80,
   "entries": [
     {
@@ -108,6 +108,36 @@
       "path": ".venv-espdl-export",
       "bytes": 67632903,
       "reason": "local cache/obsolete virtualenv; conda export environment retained"
+    },
+    {
+      "path": "C++/build",
+      "bytes": 356264598,
+      "reason": "historical firmware generated cache; source and firmware binary preserved"
+    },
+    {
+      "path": "C++/managed_components",
+      "bytes": 60836510,
+      "reason": "historical firmware generated cache; source and firmware binary preserved"
+    },
+    {
+      "path": "C++/sdkconfig",
+      "bytes": 77296,
+      "reason": "historical firmware generated cache; source and firmware binary preserved"
+    },
+    {
+      "path": "C++/sdkconfig.old",
+      "bytes": 68806,
+      "reason": "historical firmware generated cache; source and firmware binary preserved"
+    },
+    {
+      "path": "C++/dependencies.lock.esp32",
+      "bytes": 2033,
+      "reason": "historical firmware generated cache; source and firmware binary preserved"
+    },
+    {
+      "path": "C++/dependencies.lock.esp32s3",
+      "bytes": 2035,
+      "reason": "historical firmware generated cache; source and firmware binary preserved"
     }
   ],
   "original_runs_mib_rounded": 5248.77,
