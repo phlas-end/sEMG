@@ -55,7 +55,7 @@ Myo 方向于 2026-10-09 整理封版。保留采集、训练、模型导出和�
 
 原始数据、各次有效实验的 `best.pt`、配套配置、有效 ESPDL 和验证集均保留。删除逐 epoch checkpoint、ONNX/JSON/INFO 中间文件和过时入口；临时实验配置移入本机备份。
 
-源码、Git 历史及固件构建备份位于 `D:\Project\emg-esp32_archives\20261009\`。备份包含原本地配置，不能直接公开上传。
+源码、Git 历史及固件构建备份由维护者在本地保存。备份可能包含设备凭据，不应上传共享仓库；共享文档不记录个人备份位置。
 
 `data/`、`datasets/`、`runs/`、`test_data/` 不上传 Git。只克隆源码无法复现训练，需要取回配套本地实验文件。板端 ESPDL 与不含原始采集信号的结果摘要随代码保存。
 
@@ -83,28 +83,48 @@ set "EXPORT_PY=%USERPROFILE%\miniconda3\envs\espdl-int8\python.exe"
 "%EXPORT_PY%" export_model_to_esp.py --checkpoint runs/R6_r6_fp24_fc1024_20260413-154153/checkpoints/best.pt --output runs/R6_r6_fp24_fc1024_20260413-154153/espdl/sEMG.espdl
 ```
 
-复制 `C++/main/network_config.h.example` 为同目录的 `network_config.h` 并填写 Wi-Fi。密码文件被 Git 忽略；本机路径可在 `local_settings.cmd` 设置，格式见 `local_settings.example.cmd`。
+### 首次配置：必须填写
+
+先运行以下入口。它只创建缺失的配置，不覆盖已有设置：
 
 ```bat
-scripts\esp32.cmd probe COM10
-scripts\esp32.cmd build
-scripts\esp32.cmd flash COM10
-scripts\esp32.cmd monitor COM10
+scripts\configure.cmd
 ```
 
-`COM10` 为本轮识别的 USB 板端端口；后续以实际枚举为准。串口监视用 `Ctrl+]` 退出。
+| 本地文件（均被 Git 忽略） | 需要填写 |
+| --- | --- |
+| `local_settings.cmd` | 当前机器的 ESP-IDF、常规 Python、导出 Python 路径 |
+| `C++/main/network_config.h` | **实际 Wi-Fi 名称和密码，编译/烧录前必须填写** |
+| `local_connection.json` | `serial_port`：设备管理器中的实际 COM 口；`server_ip`：板子启动日志中的 IP；`server_port`：默认 3333，须与固件一致 |
+
+先填串口和 Wi-Fi，再编译、烧录、查看启动日志，最后将板端 IP 填入连接配置。电脑与板子需网络互通。不要提交这三个本地文件。漏填 Wi-Fi、IP 或串口时脚本会给出具体提示。
+
+```bat
+scripts\esp32.cmd probe
+scripts\esp32.cmd build
+scripts\esp32.cmd flash
+scripts\esp32.cmd monitor
+```
+
+以上命令读取本地配置中的串口，也可以在命令后显式传入实际端口覆盖它。串口监视用 `Ctrl+]` 退出。
 
 固定验证集回放：保存的 `X.npy` 已经除以 128，不能重复缩放。验证文件缺失时脚本报错，不改用训练数据计算准确率。
 
 ```bat
-"%PY%" esp32_replay_eval.py --config runs/R6_r6_fp24_fc1024_20260413-154153/checkpoints/config.yaml --run-dir runs/R6_r6_fp24_fc1024_20260413-154153 --server-ip BOARD_IP
+"%PY%" esp32_replay_eval.py --config runs/R6_r6_fp24_fc1024_20260413-154153/checkpoints/config.yaml --run-dir runs/R6_r6_fp24_fc1024_20260413-154153
 "%PY%" -m unittest discover -s tests -v
 ```
 
 历史实时脚本默认使用根配置中明确指定的 checkpoint。切换模型时同时传入配套 `--config` 与 `--checkpoint`，避免五/六分类或结构混用。
 
+板端连接参数优先级为：命令行 `--server-ip/--server-port`、本地 `local_connection.json`、实验配置。公开根配置不保存实际 IP。
+
 ## ESP32 后续主线
 
-Gitee 的 `esp32-standalone` 分支保存独立工程，个人私有仓库为 `phlas-end/esp32-standalone`。独立工程包括固件、模型规格、编译/烧录、回放验证和模型导出工具，不带 Myo DLL。
+共享仓库的 `esp32-standalone` 分支保存独立工程，包括固件、模型规格、编译/烧录、回放验证和模型导出工具，不带 Myo DLL。
 
 后续按新硬件补齐直接输入、端侧预处理和本地输出；重新核对采样率、单位、电极位置和输入分布。
+
+## 共享与凭据边界
+
+各机器的网络、端口和工具路径只保存在被忽略的本地配置中。本轮脱敏只更新各分支的最新文件，不改写历史提交和归档标签。旧版本中曾经提交的 Wi-Fi 密码应更换，不要恢复后继续使用；彻底清理历史凭据需要与共享仓库维护者协调。

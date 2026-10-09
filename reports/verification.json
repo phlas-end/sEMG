@@ -18,5 +18,14 @@
     "idf": "5.5.0",
     "esp_dl": "3.3.0",
     "reference_target": "esp32s3"
+  },
+  "local_configuration_checks": {
+    "date": "2026-10-09",
+    "unit_tests_passed": 9,
+    "first_setup_and_existing_files_preserved": true,
+    "missing_wifi_and_connection_hints": true,
+    "serial_port_override_and_paths_with_spaces": true,
+    "hardware_used_in_configuration_tests": false,
+    "historical_commits_rewritten": false
   }
 }

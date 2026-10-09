@@ -7,6 +7,7 @@ import yaml
 
 from emg_pipeline import ensure_window_channel_layout, save_experiment_csv
 from esp32_client import send_sample
+from connection_config import resolve_endpoint
 
 
 def find_latest_run_test_split(log_dir, experiment_name):
@@ -46,6 +47,11 @@ def main():
     with open(args.config, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
+    try:
+        server_ip, server_port = resolve_endpoint(args.server_ip, args.server_port, cfg.get("deploy"))
+    except (OSError, ValueError) as exc:
+        parser.error(str(exc))
+
     channels = cfg["data"]["channel"]
     window = cfg["data"]["window"]
     experiment = cfg["experiment"]["name"]
@@ -74,9 +80,6 @@ def main():
         raise ValueError("Replay requires a nonempty, paired X/y split")
     if not np.isfinite(X).all() or np.any((y < 0) | (y >= classes)):
         raise ValueError("Replay data contains invalid inputs or labels")
-
-    server_ip = args.server_ip or cfg["deploy"]["server_ip"]
-    server_port = args.server_port or cfg["deploy"]["server_port"]
 
     rows = []
     correct = 0

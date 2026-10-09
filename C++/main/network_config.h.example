@@ -1,4 +1,8 @@
 #pragma once
 
-#define EMG_WIFI_SSID "YOUR_WIFI_SSID"
-#define EMG_WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
+// Copy to network_config.h and fill both values. Never commit that local file.
+#define EMG_WIFI_SSID ""
+#define EMG_WIFI_PASSWORD ""
+
+static_assert(sizeof(EMG_WIFI_SSID) > 1, "Fill EMG_WIFI_SSID in network_config.h");
+static_assert(sizeof(EMG_WIFI_PASSWORD) > 1, "Fill EMG_WIFI_PASSWORD in network_config.h");

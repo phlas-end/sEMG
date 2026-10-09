@@ -1,4 +1,5 @@
 from esp32_client import send_sample
+from connection_config import resolve_endpoint
 import argparse
 import csv
 import os
@@ -50,13 +51,15 @@ def main():
     if args.disable_rest_gate:
         cfg.setdefault("deploy", {}).setdefault("rest_gate", {})["enabled"] = False
 
+    try:
+        server_ip, server_port = resolve_endpoint(args.server_ip, args.server_port, cfg.get("deploy"))
+    except (OSError, ValueError) as exc:
+        parser.error(str(exc))
+
     collector = MyoEMGCollector(cfg)
     print("waiting for Myo connection...")
     if not collector.wait_for_connection(timeout_seconds=cfg["myo"].get("connect_timeout", 15.0)):
         raise RuntimeError("Myo connection timeout")
-
-    server_ip = args.server_ip or cfg["deploy"]["server_ip"]
-    server_port = args.server_port or cfg["deploy"]["server_port"]
 
     vote_queue = deque(maxlen=args.vote_size)
     rows = []

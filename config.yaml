@@ -51,7 +51,7 @@ myo:
 
 deploy:
   checkpoint: runs/R6_r6_fp24_fc1024_20260413-154153/checkpoints/best.pt
-  server_ip: 192.168.3.9
+  server_ip: ""  # Set locally in local_connection.json or pass --server-ip.
   server_port: 3333
   rest_gate:
     enabled: false

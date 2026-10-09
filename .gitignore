@@ -17,6 +17,7 @@ C++/main/models/s3/*.info
 tmp_configs/
 tmp_calib_trainonly/
 local_settings.cmd
+local_connection.json
 C++/main/network_config.h
 *.pyc
 .pytest_cache/

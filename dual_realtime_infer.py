@@ -1,4 +1,5 @@
 from esp32_client import send_sample
+from connection_config import resolve_endpoint
 import argparse
 from pathlib import Path
 
@@ -65,8 +66,10 @@ def main():
         device = torch.device(args.device)
 
     checkpoint_path = Path(args.checkpoint or cfg["deploy"]["checkpoint"])
-    server_ip = args.server_ip or cfg["deploy"]["server_ip"]
-    server_port = args.server_port or cfg["deploy"]["server_port"]
+    try:
+        server_ip, server_port = resolve_endpoint(args.server_ip, args.server_port, cfg.get("deploy"))
+    except (OSError, ValueError) as exc:
+        parser.error(str(exc))
 
     model = load_model(cfg, checkpoint_path, device)
 
