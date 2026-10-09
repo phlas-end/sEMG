@@ -1,4 +1,5 @@
 #include "dl_model_base.hpp"
+#include "network_config.h"
 #include <cmath>
 #include "esp_wifi.h"
 #include "esp_event.h"
@@ -92,10 +93,10 @@ void tcp_server_task(void *)
 
         double model_time_ms = (model_end - model_start) / 1000.0;
 
-        // ===== 输出 52 类，取 argmax =====
+        // ===== Read the model output size and select argmax =====
         auto outputs = model->get_outputs();
         auto output_tensor = outputs.begin()->second;
-        int output_size = 5;
+        int output_size = output_tensor->get_size();
         int8_t *out_ptr = (int8_t*)output_tensor->data;
 
         int max_index = 0;
@@ -189,8 +190,8 @@ void wifi_init_sta()
 
     // 配置 SSID / 密码
     wifi_config_t wifi_config = {};
-    strcpy((char *)wifi_config.sta.ssid, "HUAWEI-209");      // 修改为你的 WiFi 名
-    strcpy((char *)wifi_config.sta.password, "woshidashabi"); // 修改为 WiFi 密码
+    strlcpy((char *)wifi_config.sta.ssid, EMG_WIFI_SSID, sizeof(wifi_config.sta.ssid));
+    strlcpy((char *)wifi_config.sta.password, EMG_WIFI_PASSWORD, sizeof(wifi_config.sta.password));
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));

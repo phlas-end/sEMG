@@ -14,7 +14,7 @@ def resolve_path(base_dir, path):
 
 
 def load_myo_module(cfg):
-    base_dir = os.path.dirname(os.path.abspath(cfg.get("_config_path", "config.yaml")))
+    base_dir = os.path.dirname(os.path.abspath(__file__))
     module_root = resolve_path(base_dir, cfg.get("myo", {}).get("module_root"))
     if module_root:
         if module_root not in sys.path:

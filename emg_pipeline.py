@@ -1,10 +1,35 @@
 import csv
 import json
 import os
+import re
 from collections import Counter, deque
+from pathlib import Path
 
 import numpy as np
 from scipy.signal import butter, filtfilt, iirnotch
+
+
+def sanitize_name(name):
+    text = str(name).strip().replace("\\", "_").replace("/", "_").replace(" ", "_")
+    return text or "default"
+
+
+def build_dataset_output_dir(dataset_root, dataset_name, split="train"):
+    return os.path.join(dataset_root, sanitize_name(dataset_name), split)
+
+
+def resolve_collection_output_dir(cfg, output_dir=None, dataset_name=None, split="train"):
+    if output_dir:
+        return output_dir
+
+    dataset_root = cfg.get("collect", {}).get("dataset_root")
+    effective_name = dataset_name or cfg.get("collect", {}).get("dataset_name")
+    if dataset_root and effective_name:
+        return build_dataset_output_dir(dataset_root, effective_name, split=split)
+
+    if split == "test":
+        return cfg["collect"]["test_output_dir"]
+    return cfg["collect"]["train_output_dir"]
 
 
 def notch_filter(signal, fs=200, freq=50, q=30):
@@ -102,27 +127,28 @@ def load_gesture_dataset(folder, channels, window, dtype=np.float32):
     X_list = []
     y_list = []
 
-    files = sorted(f for f in os.listdir(folder) if f.endswith(".npy"))
+    base = Path(folder)
+    files = sorted(base.rglob("gesture_*.npy"))
     if not files:
-        raise ValueError(f"No npy files found in {folder}")
+        raise ValueError(f"No gesture_*.npy files found in {folder}")
 
-    for file_name in files:
-        if not file_name.startswith("gesture_"):
+    for path in files:
+        match = re.fullmatch(r"gesture_(\d+)\.npy", path.name)
+        if not match:
+            print(f"skip invalid label file: {path}")
             continue
 
-        try:
-            label = int(file_name.split("gesture_")[1].split(".")[0]) - 1
-        except ValueError:
-            print(f"skip invalid label file: {file_name}")
-            continue
-
-        path = os.path.join(folder, file_name)
+        label = int(match.group(1))
         data = np.load(path)
         data = ensure_window_channel_layout(data, channels=channels, window=window).astype(dtype, copy=False)
 
         X_list.append(data)
         y_list.append(np.full((data.shape[0],), label, dtype=np.int64))
-        print(f"loaded {file_name}: samples={data.shape[0]}, label={label}")
+        try:
+            rel = path.relative_to(base)
+        except ValueError:
+            rel = path
+        print(f"loaded {rel}: samples={data.shape[0]}, label={label}")
 
     if not X_list:
         raise ValueError(f"No valid gesture_*.npy files found in {folder}")

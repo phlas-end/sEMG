@@ -1,237 +1,110 @@
-# emg-esp32
+# Myo sEMG 项目归档
 
-## 项目简介
+Myo 方向于 2026-10-09 整理封版。保留采集、训练、模型导出和验证代码供复现；后续开发转入独立 ESP32 工程。
 
-本项目用于完成基于 Myo 手环 8 通道 sEMG 信号的 5 类手势识别，并把训练好的模型部署到 ESP32-S3 上进行 int8 推理。
+## 项目内容
 
-当前主线流程是：Myo 采集数据 -> 离线训练 PyTorch 模型 -> ESPDL int8 量化导出 -> ESP32-S3 回放验证 -> Myo 实时识别。
+历史流程：Myo 8 通道肌电 → 电脑采集/切窗 → PyTorch 离线训练 → ESPDL int8 导出 → ESP32-S3 推理 → 数据回放或实时对照。
 
-## 当前阶段报告
+最初为 5 类手势，最终为 6 类：`0=静息态，1~5=手势`。当前能量门控关闭，静息态是模型输出。没有在线训练。
 
-当前已形成一版可工作的轻量化基线，后续实时实验建议先基于这一版继续做。
+当前板端仍是 TCP 窗口推理服务，电脑完成采集和切窗。直接采集、端侧切窗和本地显示属于后续工作。
 
-| 项目 | 结果 |
+## 当前配套版本
+
+| 项目 | 六分类版本 |
 | --- | --- |
-| 任务 | 5 类手势识别 |
-| 采集设备 | Myo 手环 |
-| 输入通道 | 8 通道 EMG |
-| 窗口尺寸 | `200 x 8` |
-| 采样率 | `200 Hz` |
-| 训练样本数 | `1482` 个窗口 |
-| PyTorch 验证集准确率 | `91.58%`，`272/297` |
-| ESP32 int8 回放准确率 | `79.46%`，`236/297` |
-| 板端模型大小 | 约 `3.19 MB` |
-| 当前板端模型 | `C++/main/models/s3/sEMG.espdl` |
+| 模型目录 | `runs/R6_r6_fp24_fc1024_20260413-154153/` |
+| checkpoint / 配置 | 上述目录的 `checkpoints/best.pt`、`checkpoints/config.yaml` |
+| PyTorch 验证结果 | `82.18% (249/303)`，本轮重新加载原模型与验证集复核 |
+| 板端 ESPDL | `C++/main/models/s3/sEMG.espdl`，1,618,144 bytes |
+| 原始 ESPDL 归档 | 上述目录的 `espdl/sEMG.espdl`，与板端文件 SHA-256 相同 |
+| 验证集 | 上述目录的 `test_split/X.npy`、`y.npy` |
+| 结构 | 三层卷积，`final_pool=[24,1]`，`fc_hidden=1024` |
+| 输入 | 200 Hz、8 通道、窗口 `200×8`；模型输入 `(N,1,200,8)` |
+| 缩放 | 原始 Myo 数值除以 `128.0`；保存的验证集已经缩放 |
 
-当前最佳 PyTorch checkpoint 在本机实验目录中：
+根 `config.yaml` 已与实际默认模型对齐。六分类板端准确率须通过对应验证集实机回放确认，不能借用五分类数字。
 
-```text
-runs/E2_light_final_pool_48x1_20260409-222302/checkpoints/best.pt
-```
+历史五分类基线为 PyTorch `91.58% (272/297)`、ESP32 int8 `79.46% (236/297)`；配套归档为 `runs/candidates/best_int8_20260410_011824/`。
 
-当前最佳 int8 归档在本机实验目录中：
-
-```text
-runs/candidates/best_int8_20260410_011824
-```
-
-说明：`runs/`、`data/`、`test_data/` 默认不进 git，避免把训练数据和实验产物全部上传。真正会跟随仓库的板端模型是 `C++/main/models/s3/sEMG.espdl`。
-
-## 当前方案说明
-
-这版不是最早的大模型，而是后续迭代得到的轻量化版本。
-
-关键点如下：
-
-- `model.final_pool: [48, 1]` 用于压缩卷积后的特征图，避免全连接层过大。
-- `model.fc_hidden: 1024` 保持和旧版接近的容量。
-- `data.input_scale: 128.0` 统一训练、导出、回放、实时推理的输入尺度。
-- `deploy.quantization.samples_per_class` 为空，表示导出时使用 `data/gesture_*.npy` 中可用的全量样本做量化校准。
-- 实时识别阶段增加了静息态门控，用于在放松状态下输出 `rest`，避免把低能量静息信号强行判成某个手势。
-
-这轮尝试过更小的 `final_pool` 和更少 `fc_hidden`，但 ESP32 int8 回放没有超过当前版本。因此当前先固定为基线。
-
-## 文件说明
-
-| 文件 | 作用 |
-| --- | --- |
-| `myo_guided_collect.py` | Myo 引导式采集入口 |
-| `myo_runtime.py` | Myo 运行时封装，负责连接手环并接收 EMG |
-| `emg_pipeline.py` | 数据布局、切窗、输入缩放、静息态判断、实验 CSV 保存 |
-| `train_emg_model.py` | 离线训练入口 |
-| `model.py` | PyTorch 模型结构 |
-| `export_model_to_esp.py` | PyTorch checkpoint 到 ESPDL int8 的导出入口 |
-| `esp32_replay_eval.py` | 使用固定测试集回放到 ESP32 并统计准确率 |
-| `myo_realtime_infer.py` | Myo 实时输入，发送到 ESP32 做 int8 实时识别 |
-| `python_realtime_infer.py` | Myo 实时输入，本地 PyTorch 原始模型识别，用于和 ESP32 对照 |
-| `config.yaml` | 项目主配置 |
-| `C++/main/app_main.cpp` | ESP32-S3 端推理服务 |
-| `C++/main/models/s3/sEMG.espdl` | 当前板端 int8 模型 |
-
-## 环境说明
-
-常规采集、训练、回放、实时识别使用：
-
-```powershell
-C:\Users\phlas\miniconda3\envs\myo\python.exe
-```
-
-ESPDL int8 导出使用：
-
-```powershell
-C:\Users\phlas\miniconda3\envs\espdl-int8\python.exe
-```
-
-ESP-IDF 环境在：
-
-```text
-C:\Users\phlas\esp\v5.5\esp-idf
-```
-
-## 数据采集流程
-
-默认采集协议在 `config.yaml` 中：
-
-| 配置项 | 当前值 | 含义 |
+| 六分类结构：final_pool / fc_hidden | 历史最好 PyTorch 验证结果 | 本机 ESPDL |
 | --- | --- | --- |
-| `collect.guided.gestures` | `[1, 2, 3, 4, 5]` | 5 个手势 |
-| `collect.guided.repetitions` | `50` | 每个手势 50 次 |
-| `collect.guided.action_seconds` | `1.0` | 每次动作保持 1 秒 |
-| `collect.guided.rest_seconds` | `1.0` | 每次动作间休息 1 秒 |
+| `[24,1]` / 1024 | 82.18% | 已保留，当前默认 |
+| `[24,1]` / 768 | 81.19% | 未发现成功导出的文件 |
+| `[48,1]` / 1024 | 76.24% | 未发现成功导出的文件 |
+| `[48,1]` / 768 | 76.24% | 未发现成功导出的文件 |
 
-运行采集：
+完整本机模型清单见 `reports/model_inventory.json`；本轮复核见 `reports/verification.json`。历史训练按窗口随机划分，并使用同一验证集选择 best；默认量化校准可能包含验证窗口。这些结果不能解释为严格无泄漏的独立测试或跨受试者结果。
 
-```powershell
-C:\Users\phlas\miniconda3\envs\myo\python.exe myo_guided_collect.py
-```
+## 文件和本地数据
 
-采集脚本会先记录动作段，再按 `window=200`、`step=50` 做事后切分，最终保存为：
-
-```text
-data/gesture_1.npy
-data/gesture_2.npy
-data/gesture_3.npy
-data/gesture_4.npy
-data/gesture_5.npy
-```
-
-## 训练流程
-
-```powershell
-C:\Users\phlas\miniconda3\envs\myo\python.exe train_emg_model.py
-```
-
-训练脚本会读取 `data/gesture_*.npy`，统一输入尺度后训练模型，并导出对应测试集到 `test_data/`。
-
-典型输出：
-
-```text
-runs/<experiment>/checkpoints/best.pt
-test_data/<experiment>_X.npy
-test_data/<experiment>_y.npy
-```
-
-## ESPDL int8 导出流程
-
-```powershell
-C:\Users\phlas\miniconda3\envs\espdl-int8\python.exe export_model_to_esp.py --checkpoint runs/E2_light_final_pool_48x1_20260409-222302/checkpoints/best.pt
-```
-
-导出结果会覆盖：
-
-```text
-C++/main/models/s3/sEMG.espdl
-```
-
-如果不传 `--checkpoint`，脚本会从 `runs/` 下自动查找最新的 `best.pt`。为了复现实验，建议关键版本显式指定 checkpoint。
-
-## ESP32 编译与烧录流程
-
-进入板端工程：
-
-```powershell
-cd C++
-```
-
-加载 ESP-IDF 环境后执行：
-
-```powershell
-idf.py set-target esp32s3
-idf.py build
-idf.py -p COM6 flash
-```
-
-板端程序会启动 TCP 服务，PC 侧通过 `config.yaml` 中的 `deploy.server_ip` 和 `deploy.server_port` 连接。
-
-## 固定测试集回放验证
-
-```powershell
-C:\Users\phlas\miniconda3\envs\myo\python.exe esp32_replay_eval.py
-```
-
-这个脚本用于把保存好的测试集窗口发给 ESP32，统计 int8 板端准确率。当前最佳回放结果为：
-
-```text
-79.46% (236/297)
-```
-
-## 实时识别流程
-
-ESP32 int8 实时识别：
-
-```powershell
-C:\Users\phlas\miniconda3\envs\myo\python.exe myo_realtime_infer.py --max-windows 1000000
-```
-
-本地 PyTorch 原始模型实时识别，用于对照：
-
-```powershell
-C:\Users\phlas\miniconda3\envs\myo\python.exe python_realtime_infer.py --device cuda --max-windows 1000000
-```
-
-实时脚本会输出当前窗口预测、稳定投票结果，以及静息态 `rest` 判断。
-
-## 后续建议
-
-短期建议先不要继续扩大模型。当前主要差距在 int8 量化后精度损失，下一步如果要继续提升，优先考虑：
-
-- 采集更多覆盖不同佩戴状态和发力强度的数据。
-- 针对混淆类别补采样本，而不是盲目增大模型。
-- 保持当前输入缩放和量化校准流程一致，避免训练、导出、板端回放三者输入分布漂移。
-- 实时实验时先看 `python_realtime_infer.py` 和 `myo_realtime_infer.py` 是否在同一动作上同时混淆，再判断是模型问题还是量化/板端问题。
-
-## 报告展示材料索引
-
-以下文件适合在论文、答辩或阶段报告里引用。注意：`runs/`、`data/`、`test_data/` 默认被 `.gitignore` 忽略，属于本机实验产物；仓库里会保留源码、配置、README 和当前板端 `sEMG.espdl`。
-
-| 用途 | 路径 | 说明 |
-| --- | --- | --- |
-| 项目流程说明 | `README.md` | 项目介绍、操作流程、当前结果汇总 |
-| AI 接手说明 | `AGENTS.md` | 给后续 AI/协作者看的上下文和注意事项 |
-| 当前配置 | `config.yaml` | 窗口、通道、轻量模型、静息态、量化校准配置 |
-| 模型结构源码 | `model.py` | 当前轻量化 CNN 结构，包含 `final_pool` |
-| 训练入口 | `train_emg_model.py` | 离线训练与测试集导出 |
-| 导出入口 | `export_model_to_esp.py` | PyTorch -> ESPDL int8 导出 |
-| 板端回放评估 | `esp32_replay_eval.py` | 固定测试集发送到 ESP32 统计准确率 |
-| 板端推理代码 | `C++/main/app_main.cpp` | ESP32-S3 TCP 接收和推理逻辑 |
-| 当前板端模型 | `C++/main/models/s3/sEMG.espdl` | 已刷入并验证过的 int8 模型，约 `3.19 MB` |
-| 最佳 PyTorch 模型 | `runs/E2_light_final_pool_48x1_20260409-222302/checkpoints/best.pt` | 本机最佳轻量模型，PyTorch 验证集 `91.58%` |
-| 最佳 int8 归档 | `runs/candidates/best_int8_20260410_011824/` | 本机归档，包含 `best.pt`、`sEMG.espdl`、配置和回放结果 |
-| 最佳回放结果 | `runs/experiments/E2_light_replay_20260410-011824.csv` | ESP32 int8 固定测试集回放，`79.46% (236/297)` |
-| 训练数据 | `data/gesture_*.npy` | 5 类手势采集后的窗口数据，本机保存 |
-| 测试数据 | `test_data/E2_light_X.npy`、`test_data/E2_light_y.npy` | 当前实验对应测试集，本机保存 |
-
-报告里建议优先展示这几组数字：
-
-| 指标 | 数值 |
+| 文件或目录 | 用途 |
 | --- | --- |
-| 手势类别数 | `5` |
-| 输入窗口 | `200 x 8` |
-| 采样率 | `200 Hz` |
-| 总窗口样本数 | `1482` |
-| PyTorch 验证集准确率 | `91.58% (272/297)` |
-| ESP32 int8 回放准确率 | `79.46% (236/297)` |
-| 板端模型大小 | 约 `3.19 MB` |
+| `myo_guided_collect.py`、`myo_runtime.py`、`myo_support/` | 归档的 Myo 采集和原依赖；依赖文件保持原样 |
+| `train_emg_model.py`、`model.py`、`emg_pipeline.py` | 离线训练、轻量 CNN、布局/缩放/切窗 |
+| `export_model_to_esp.py` | ESPDL 导出，默认读取 checkpoint 同目录的配置 |
+| `esp32_client.py`、`esp32_replay_eval.py` | TCP 客户端和保存验证集的回放 |
+| 三个 `*realtime_infer.py` 及 `dual_realtime_infer.py` | 归档的 Myo 实时对照入口 |
+| `C++/`、`scripts/esp32.cmd` | 历史板端工程和 CMD 工具链入口 |
+| `data/` | 早期五分类数据 |
+| `datasets/collection_20260413/` | 后期数据与六分类训练数据 |
+| `runs/` | 各实验 best checkpoint、配置、ESPDL、验证集、日志与结果 |
+| `test_data/` | 早期导出的验证数据；保留原名以维持可追溯性 |
+| `reports/` | 模型清单、复核摘要和清理记录，供报告使用 |
 
-历史探索文件如 `pt2onnx.py`、`onnx2ncnn.txt`、`launch_tensorboard.bat` 不属于当前推荐主流程，报告里不建议引用。
+原始数据、各次有效实验的 `best.pt`、配套配置、有效 ESPDL 和验证集均保留。删除逐 epoch checkpoint、ONNX/JSON/INFO 中间文件和过时入口；临时实验配置移入本机备份。
 
+源码、Git 历史及固件构建备份位于 `D:\Project\emg-esp32_archives\20261009\`。备份包含原本地配置，不能直接公开上传。
+
+`data/`、`datasets/`、`runs/`、`test_data/` 不上传 Git。只克隆源码无法复现训练，需要取回配套本地实验文件。板端 ESPDL 与不含原始采集信号的结果摘要随代码保存。
+
+## 环境与复现
+
+以下命令在仓库根目录的 CMD 中执行。常规 Python 使用 `myo`，导出使用 `espdl-int8`；固件使用 ESP-IDF 5.5。源码板型为 ESP32-S3、8 MB Flash、八线 PSRAM。
+
+```bat
+set "PY=%USERPROFILE%\miniconda3\envs\myo\python.exe"
+set "EXPORT_PY=%USERPROFILE%\miniconda3\envs\espdl-int8\python.exe"
+```
+
+历史采集协议为每类 50 次、每次 1 秒、间隔休息 1 秒，采集后切窗。若复现采集，请指定新数据集名称。
+
+```bat
+"%PY%" myo_guided_collect.py --dataset-name new_collection
+"%PY%" train_emg_model.py --config config.yaml
+```
+
+训练保存验证集和 best checkpoint，不再每五个 epoch 保存大文件。
+
+导出明确指定 checkpoint；未传 `--config` 时读取旁边的 `config.yaml`。默认输出会覆盖板端文件，复现建议先导出到实验目录。
+
+```bat
+"%EXPORT_PY%" export_model_to_esp.py --checkpoint runs/R6_r6_fp24_fc1024_20260413-154153/checkpoints/best.pt --output runs/R6_r6_fp24_fc1024_20260413-154153/espdl/sEMG.espdl
+```
+
+复制 `C++/main/network_config.h.example` 为同目录的 `network_config.h` 并填写 Wi-Fi。密码文件被 Git 忽略；本机路径可在 `local_settings.cmd` 设置，格式见 `local_settings.example.cmd`。
+
+```bat
+scripts\esp32.cmd probe COM10
+scripts\esp32.cmd build
+scripts\esp32.cmd flash COM10
+scripts\esp32.cmd monitor COM10
+```
+
+`COM10` 为本轮识别的 USB 板端端口；后续以实际枚举为准。串口监视用 `Ctrl+]` 退出。
+
+固定验证集回放：保存的 `X.npy` 已经除以 128，不能重复缩放。验证文件缺失时脚本报错，不改用训练数据计算准确率。
+
+```bat
+"%PY%" esp32_replay_eval.py --config runs/R6_r6_fp24_fc1024_20260413-154153/checkpoints/config.yaml --run-dir runs/R6_r6_fp24_fc1024_20260413-154153 --server-ip BOARD_IP
+"%PY%" -m unittest discover -s tests -v
+```
+
+历史实时脚本默认使用根配置中明确指定的 checkpoint。切换模型时同时传入配套 `--config` 与 `--checkpoint`，避免五/六分类或结构混用。
+
+## ESP32 后续主线
+
+Gitee 的 `codex/esp32-standalone` 分支保存独立工程，个人私有仓库为 `phlas-end/esp32-standalone`。独立工程包括固件、模型规格、编译/烧录、回放验证和模型导出工具，不带 Myo DLL。
+
+后续按新硬件补齐直接输入、端侧预处理和本地输出；重新核对采样率、单位、电极位置和输入分布。

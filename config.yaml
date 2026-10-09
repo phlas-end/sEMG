@@ -1,17 +1,16 @@
 experiment:
-  name: E2_light
-  num_classes: 5
+  name: R6
+  num_classes: 6
   log_dir: runs/
-  note: final_pool_48x1
+  note: r6_fp24_fc1024
 
 data:
-  root_dir: ./data
+  root_dir: ./datasets/collection_20260413/train
   fs: 200
   window: 200
   step: 50
   channel: 8
   input_scale: 128.0
-  remove_label_0: true
 
 filters:
   notch:
@@ -32,10 +31,13 @@ train:
   random_seed: 42
 
 collect:
-  train_output_dir: ./data
+  dataset_root: ./datasets
+  dataset_name: collection_20260413
+  train_output_dir: ./datasets/collection_20260413/train
   test_output_dir: ./test_data
   apply_filters: false
   guided:
+    include_rest_class: true
     gestures: [1, 2, 3, 4, 5]
     repetitions: 50
     action_seconds: 1.0
@@ -48,10 +50,11 @@ myo:
   connect_timeout: 15.0
 
 deploy:
+  checkpoint: runs/R6_r6_fp24_fc1024_20260413-154153/checkpoints/best.pt
   server_ip: 192.168.3.9
   server_port: 3333
   rest_gate:
-    enabled: true
+    enabled: false
     abs_mean_threshold: 2.3
     rms_threshold: 3.5
     channel_abs_threshold: 1.5
@@ -70,6 +73,6 @@ model:
     - out_channels: 64
       kernel_size: 2
       pool_size: null
-  final_pool: [48, 1]
+  final_pool: [24, 1]
   fc_hidden: 1024
   dropout_rate: 0.2

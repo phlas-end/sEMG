@@ -4,6 +4,7 @@ runs/
 test_data/
 data/
 DATA/
+datasets/
 .venv-espdl-export/
 C++/build/
 C++/managed_components/
@@ -15,3 +16,8 @@ C++/main/models/s3/*.json
 C++/main/models/s3/*.info
 tmp_configs/
 tmp_calib_trainonly/
+local_settings.cmd
+C++/main/network_config.h
+*.pyc
+.pytest_cache/
+reports/*_local.json

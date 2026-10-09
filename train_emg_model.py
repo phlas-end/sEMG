@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 from datetime import datetime
 
@@ -86,13 +87,24 @@ def build_output_dirs(cfg):
     return output_dir, tb_dir, model_dir
 
 
-def export_test_split(X_test, y_test, cfg):
-    export_dir = "test_data"
+def export_test_split(output_dir, X_test, y_test, cfg):
+    export_dir = os.path.join(output_dir, "test_split")
     os.makedirs(export_dir, exist_ok=True)
 
-    exp_name = cfg["experiment"]["name"]
-    np.save(os.path.join(export_dir, f"{exp_name}_X.npy"), X_test.astype(np.float32))
-    np.save(os.path.join(export_dir, f"{exp_name}_y.npy"), y_test.astype(np.int64))
+    np.save(os.path.join(export_dir, "X.npy"), X_test.astype(np.float32))
+    np.save(os.path.join(export_dir, "y.npy"), y_test.astype(np.int64))
+    with open(os.path.join(export_dir, "meta.json"), "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "experiment": cfg["experiment"]["name"],
+                "note": cfg["experiment"].get("note"),
+                "samples": int(len(y_test)),
+                "shape": list(X_test.shape),
+            },
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
 
 
 def main(cfg):
@@ -121,7 +133,7 @@ def main(cfg):
         random_state=cfg["train"].get("random_seed", 42),
     )
 
-    export_test_split(X_test, y_test, cfg)
+    export_test_split(output_dir, X_test, y_test, cfg)
 
     train_ds = EMGDataset(X_train, y_train)
     test_ds = EMGDataset(X_test, y_test)
@@ -182,9 +194,6 @@ def main(cfg):
         if val_acc > best_acc:
             best_acc = val_acc
             torch.save(model.state_dict(), os.path.join(model_dir, "best.pt"))
-
-        if epoch % 5 == 0 or epoch == epochs:
-            torch.save(model.state_dict(), os.path.join(model_dir, f"epoch_{epoch:03d}.pt"))
 
     writer.close()
     print(f"Training finished. Output directory: {output_dir}")

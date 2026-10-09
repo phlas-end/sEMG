@@ -1,0 +1,16 @@
+{
+  "date": "2026-10-09",
+  "six_class_pytorch": {
+    "run": "R6_r6_fp24_fc1024_20260413-154153",
+    "correct": 249,
+    "samples": 303,
+    "accuracy": 0.8217821782178217,
+    "input_already_scaled": true
+  },
+  "five_class_historical_board_replay": {
+    "correct": 236,
+    "samples": 297,
+    "source": "runs/candidates/best_int8_20260410_011824/replay.csv"
+  },
+  "six_class_board_accuracy": null
+}

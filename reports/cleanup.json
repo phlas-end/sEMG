@@ -1,0 +1,122 @@
+{
+  "date": "2026-10-09",
+  "deleted_files": 21,
+  "freed_bytes": 75317833,
+  "preserved_artifacts_sha256_verified": 80,
+  "entries": [
+    {
+      "path": "tmp_configs/baseline_allcal.yaml",
+      "bytes": 1331,
+      "reason": "temporary experiment files archived outside project"
+    },
+    {
+      "path": "tmp_configs/baseline_trainonlycal.yaml",
+      "bytes": 1346,
+      "reason": "temporary experiment files archived outside project"
+    },
+    {
+      "path": "tmp_configs/fp12_fc1024.yaml",
+      "bytes": 1324,
+      "reason": "temporary experiment files archived outside project"
+    },
+    {
+      "path": "tmp_configs/fp16_fc1024.yaml",
+      "bytes": 1324,
+      "reason": "temporary experiment files archived outside project"
+    },
+    {
+      "path": "tmp_configs/fp24_fc1024.yaml",
+      "bytes": 1325,
+      "reason": "temporary experiment files archived outside project"
+    },
+    {
+      "path": "tmp_configs/fp24_fc768.yaml",
+      "bytes": 1323,
+      "reason": "temporary experiment files archived outside project"
+    },
+    {
+      "path": "tmp_configs/fp32_fc1024.yaml",
+      "bytes": 1324,
+      "reason": "temporary experiment files archived outside project"
+    },
+    {
+      "path": "tmp_configs/fp40_fc1024.yaml",
+      "bytes": 1324,
+      "reason": "temporary experiment files archived outside project"
+    },
+    {
+      "path": "tmp_configs/fp40_fc768.yaml",
+      "bytes": 1322,
+      "reason": "temporary experiment files archived outside project"
+    },
+    {
+      "path": "tmp_configs/fp48_fc768.yaml",
+      "bytes": 1323,
+      "reason": "temporary experiment files archived outside project"
+    },
+    {
+      "path": "tmp_configs/r6_fp24_fc1024.yaml",
+      "bytes": 1486,
+      "reason": "temporary experiment files archived outside project"
+    },
+    {
+      "path": "tmp_configs/r6_fp24_fc768.yaml",
+      "bytes": 1484,
+      "reason": "temporary experiment files archived outside project"
+    },
+    {
+      "path": "tmp_configs/r6_fp48_fc1024.yaml",
+      "bytes": 1486,
+      "reason": "temporary experiment files archived outside project"
+    },
+    {
+      "path": "tmp_configs/r6_fp48_fc768.yaml",
+      "bytes": 1484,
+      "reason": "temporary experiment files archived outside project"
+    },
+    {
+      "path": "tmp_calib_trainonly/gesture_1.npy",
+      "bytes": 1504128,
+      "reason": "temporary experiment files archived outside project"
+    },
+    {
+      "path": "tmp_calib_trainonly/gesture_2.npy",
+      "bytes": 1516928,
+      "reason": "temporary experiment files archived outside project"
+    },
+    {
+      "path": "tmp_calib_trainonly/gesture_3.npy",
+      "bytes": 1516928,
+      "reason": "temporary experiment files archived outside project"
+    },
+    {
+      "path": "tmp_calib_trainonly/gesture_4.npy",
+      "bytes": 1523328,
+      "reason": "temporary experiment files archived outside project"
+    },
+    {
+      "path": "tmp_calib_trainonly/gesture_5.npy",
+      "bytes": 1523328,
+      "reason": "temporary experiment files archived outside project"
+    },
+    {
+      "path": "__pycache__",
+      "bytes": 81084,
+      "reason": "local cache/obsolete virtualenv; conda export environment retained"
+    },
+    {
+      "path": ".venv-espdl-export",
+      "bytes": 67632903,
+      "reason": "local cache/obsolete virtualenv; conda export environment retained"
+    }
+  ],
+  "original_runs_mib_rounded": 5248.77,
+  "remaining_runs_bytes": 177035451,
+  "note": "Epoch checkpoints/export intermediates were deleted in the first pass before the per-file report completed; freed_bytes covers the subsequent pass only. Original rounded runs size is retained for approximate total recovery.",
+  "source_files_removed": [
+    "pt2onnx.py",
+    "onnx2ncnn.txt",
+    "launch_tensorboard.bat",
+    "_flash_best.cmd"
+  ]
+}

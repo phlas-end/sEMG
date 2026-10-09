@@ -7,18 +7,39 @@ from datetime import datetime
 import numpy as np
 import yaml
 
-from emg_pipeline import apply_filters, save_gesture_samples, save_metadata_json, segment_continuous_signal
+from emg_pipeline import (
+    apply_filters,
+    resolve_collection_output_dir,
+    save_gesture_samples,
+    save_metadata_json,
+    segment_continuous_signal,
+)
 from myo_runtime import MyoEMGCollector
+
+
+def banner(text, char="*", width=72):
+    line = char * width
+    print("")
+    print(line)
+    print(text.center(width))
+    print(line)
+
+
+def phase_banner(title, detail=None):
+    banner(title, char="=")
+    if detail:
+        print(detail)
 
 
 def countdown(seconds, title):
     total = int(seconds)
     if total <= 0:
         return
-    print(title)
+    banner(f"{title.upper()} START", char="-", width=56)
     for remaining in range(total, 0, -1):
-        print(f"  {remaining}")
+        print(f">>> {title.upper()} : {remaining}s")
         time.sleep(1.0)
+    print(f">>> {title.upper()} : done")
 
 
 def write_protocol_csv(path, rows):
@@ -56,38 +77,41 @@ def collect_protocol(cfg, gestures, repetitions, action_seconds, rest_seconds, o
 
     protocol_rows = []
 
-    print("guided collection protocol")
+    banner("GUIDED MYO COLLECTION", char="#")
     print(f"gestures={gestures}")
     print(f"repetitions per gesture={repetitions}")
     print(f"action_seconds={action_seconds}")
     print(f"rest_seconds={rest_seconds}")
     print(f"window={window}, step={step}, fs={fs}")
+    print(f"dataset_dir={output_dir}")
+    print(f"session_dir={session_dir}")
 
     for gesture_id in gestures:
-        print("")
-        print(f"gesture {gesture_id} begin")
-        print("press Enter when you are ready")
+        gesture_title = "REST CLASS (0)" if gesture_id == 0 else f"GESTURE {gesture_id}"
+        phase_banner(gesture_title, "press Enter when you are ready")
         input()
 
         gesture_action_segments = []
 
         for rep in range(1, repetitions + 1):
-            print("")
-            print(f"gesture {gesture_id} repetition {rep}/{repetitions}")
+            rep_title = f"REST CLASS (0) | REP {rep}/{repetitions}" if gesture_id == 0 else f"GESTURE {gesture_id} | REP {rep}/{repetitions}"
+            banner(rep_title, char="*", width=72)
 
-            if rest_seconds > 0:
+            if gesture_id != 0 and rest_seconds > 0:
                 countdown(rest_seconds, "rest")
                 rest_segment = collector.collect_duration(rest_seconds)
             else:
                 rest_segment = np.empty((0, cfg["data"]["channel"]), dtype=np.float32)
 
             countdown(1, "prepare")
-            print("hold gesture now")
+            hold_title = "STAY RELAXED NOW" if gesture_id == 0 else "HOLD GESTURE NOW"
+            banner(hold_title, char="!", width=72)
             action_segment = collector.collect_duration(action_seconds)
-            print("release")
+            banner("RELEASE", char=".", width=56)
 
             if action_segment.shape[0] < window:
-                print(f"skip repetition {rep}, not enough frames: {action_segment.shape[0]}")
+                banner("REPETITION SKIPPED", char="x", width=56)
+                print(f"not enough frames: {action_segment.shape[0]}")
                 protocol_rows.append(
                     {
                         "gesture_id": gesture_id,
@@ -109,6 +133,10 @@ def collect_protocol(cfg, gestures, repetitions, action_seconds, rest_seconds, o
             )
 
             segmented = segment_continuous_signal(action_segment, window=window, step=step)
+            print(
+                f"saved repetition {rep}: rest_frames={rest_segment.shape[0]}, "
+                f"action_frames={action_segment.shape[0]}, windows={segmented.shape[0]}"
+            )
             protocol_rows.append(
                 {
                     "gesture_id": gesture_id,
@@ -140,8 +168,11 @@ def collect_protocol(cfg, gestures, repetitions, action_seconds, rest_seconds, o
         if apply_window_filters:
             gesture_windows = np.asarray([apply_filters(item, cfg) for item in gesture_windows], dtype=np.float32)
 
-        save_path, total_count = save_gesture_samples(output_dir, gesture_id, gesture_windows)
-        print(f"gesture {gesture_id} saved to {save_path}, total samples={total_count}")
+        save_path, total_count = save_gesture_samples(session_dir, gesture_id, gesture_windows)
+        phase_banner(
+            f"GESTURE {gesture_id} COMPLETE",
+            f"saved to {save_path}, total samples={total_count}",
+        )
 
     write_protocol_csv(os.path.join(session_dir, "protocol.csv"), protocol_rows)
     save_metadata_json(
@@ -158,8 +189,8 @@ def collect_protocol(cfg, gestures, repetitions, action_seconds, rest_seconds, o
             "output_dir": output_dir,
         },
     )
-    print("")
-    print(f"guided collection finished: {session_dir}")
+    banner("GUIDED COLLECTION FINISHED", char="#")
+    print(f"session_dir={session_dir}")
 
 
 def parse_gestures(value):
@@ -176,6 +207,8 @@ def main():
     parser.add_argument("--action-seconds", type=float, default=None)
     parser.add_argument("--rest-seconds", type=float, default=None)
     parser.add_argument("--output-dir", default=None)
+    parser.add_argument("--dataset-name", default=None)
+    parser.add_argument("--include-rest-class", action="store_true")
     args = parser.parse_args()
 
     with open(args.config, "r", encoding="utf-8") as f:
@@ -184,9 +217,19 @@ def main():
 
     guided_cfg = cfg["collect"].get("guided", {})
     gestures = parse_gestures(args.gestures) if args.gestures else parse_gestures(guided_cfg.get("gestures", [1, 2, 3, 4, 5]))
+    include_rest_class = args.include_rest_class or guided_cfg.get("include_rest_class", False)
+    if include_rest_class and 0 not in gestures:
+        gestures = [0] + gestures
     repetitions = args.repetitions if args.repetitions is not None else guided_cfg.get("repetitions", 50)
     action_seconds = args.action_seconds if args.action_seconds is not None else guided_cfg.get("action_seconds", 1.0)
     rest_seconds = args.rest_seconds if args.rest_seconds is not None else guided_cfg.get("rest_seconds", 1.0)
+
+    output_dir = resolve_collection_output_dir(
+        cfg,
+        output_dir=args.output_dir,
+        dataset_name=args.dataset_name,
+        split="train",
+    )
 
     collect_protocol(
         cfg=cfg,
@@ -194,7 +237,7 @@ def main():
         repetitions=repetitions,
         action_seconds=action_seconds,
         rest_seconds=rest_seconds,
-        output_dir=args.output_dir or cfg["collect"]["train_output_dir"],
+        output_dir=output_dir,
     )
 
 

@@ -1,0 +1,129 @@
+[
+  {
+    "run": "E2_iter_fp24_fc1024_20260412-220753",
+    "classes": 5,
+    "final_pool": [
+      24,
+      1
+    ],
+    "fc_hidden": 1024,
+    "best_validation": 0.9225589036941528,
+    "checkpoint": 6425306,
+    "espdl": 1617152,
+    "espdl_sha256": "0e7b60786d091822d14c0057f8d69b431ee57bfd50b5275c4d108bc97b0a9486"
+  },
+  {
+    "run": "E2_iter_fp24_fc768_20260412-220921",
+    "classes": 5,
+    "final_pool": [
+      24,
+      1
+    ],
+    "fc_hidden": 768,
+    "best_validation": 0.936026930809021,
+    "checkpoint": 4846298,
+    "espdl": 1221584,
+    "espdl_sha256": "1613036e8c87e43257566f5105e5e3617932ccb27bc124e20325cbf45054d3b1"
+  },
+  {
+    "run": "E2_iter_fp48_fc768_20260412-220518",
+    "classes": 5,
+    "final_pool": [
+      48,
+      1
+    ],
+    "fc_hidden": 768,
+    "best_validation": 0.8989899158477783,
+    "checkpoint": 9564890,
+    "espdl": 2401248,
+    "espdl_sha256": "bf62758ecff28e9060d584c45845627a07ed423498d2b0719b64c24bd1ad2dd0"
+  },
+  {
+    "run": "E2_light_final_pool_48x1_20260409-222302",
+    "classes": 5,
+    "final_pool": [
+      48,
+      1
+    ],
+    "fc_hidden": 1024,
+    "best_validation": null,
+    "checkpoint": 12716762,
+    "espdl": 3190000,
+    "espdl_sha256": "439d97efba6954793fdb6c3d6b388d1e9d25446357cb12bd0e5a6095ff632446"
+  },
+  {
+    "run": "E2_light_final_pool_48x1_20260412-202022",
+    "classes": 5,
+    "final_pool": [
+      48,
+      1
+    ],
+    "fc_hidden": 1024,
+    "best_validation": 0.8989899158477783,
+    "checkpoint": 12716762,
+    "espdl": null,
+    "espdl_sha256": null
+  },
+  {
+    "run": "E2_no_note_20260412-193453",
+    "classes": 5,
+    "final_pool": null,
+    "fc_hidden": 1024,
+    "best_validation": 0.9292929172515869,
+    "checkpoint": 63048346,
+    "espdl": null,
+    "espdl_sha256": null
+  },
+  {
+    "run": "R6_r6_fp24_fc1024_20260413-154153",
+    "classes": 6,
+    "final_pool": [
+      24,
+      1
+    ],
+    "fc_hidden": 1024,
+    "best_validation": 0.8217821717262268,
+    "checkpoint": 6429402,
+    "espdl": 1618144,
+    "espdl_sha256": "ed9aa7b59e85c7c1f5c136ebd21a9eb25f717caa03eb13c35319ec174a8c5a55"
+  },
+  {
+    "run": "R6_r6_fp24_fc768_20260413-154314",
+    "classes": 6,
+    "final_pool": [
+      24,
+      1
+    ],
+    "fc_hidden": 768,
+    "best_validation": 0.8118811845779419,
+    "checkpoint": 4849370,
+    "espdl": null,
+    "espdl_sha256": null
+  },
+  {
+    "run": "R6_r6_fp48_fc1024_20260413-153850",
+    "classes": 6,
+    "final_pool": [
+      48,
+      1
+    ],
+    "fc_hidden": 1024,
+    "best_validation": 0.7623762488365173,
+    "checkpoint": 12720858,
+    "espdl": null,
+    "espdl_sha256": null
+  },
+  {
+    "run": "R6_r6_fp48_fc768_20260413-154024",
+    "classes": 6,
+    "final_pool": [
+      48,
+      1
+    ],
+    "fc_hidden": 768,
+    "best_validation": 0.7623762488365173,
+    "checkpoint": 9567962,
+    "espdl": null,
+    "espdl_sha256": null
+  }
+]

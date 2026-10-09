@@ -11,19 +11,6 @@ from model import EMG2DCNN
 from myo_runtime import MyoEMGCollector
 
 
-def find_latest_best_pt(log_dir):
-    candidates = []
-    for p in Path(log_dir).iterdir():
-        if not p.is_dir():
-            continue
-        best_pt = p / "checkpoints" / "best.pt"
-        if best_pt.exists():
-            candidates.append(best_pt)
-
-    if not candidates:
-        raise FileNotFoundError(f"no best.pt found under {log_dir}")
-
-    return max(candidates, key=lambda p: p.stat().st_mtime)
 
 
 def load_model(cfg, checkpoint_path, device):
@@ -57,18 +44,22 @@ def main():
     parser.add_argument("--max-windows", type=int, default=100)
     parser.add_argument("--vote-size", type=int, default=5)
     parser.add_argument("--chunk-seconds", type=float, default=1.0)
+    parser.add_argument("--legacy-output", action="store_true")
+    parser.add_argument("--disable-rest-gate", action="store_true")
     args = parser.parse_args()
 
     with open(args.config, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
     cfg["_config_path"] = str(Path(args.config).resolve())
+    if args.disable_rest_gate:
+        cfg.setdefault("deploy", {}).setdefault("rest_gate", {})["enabled"] = False
 
     if args.device == "auto":
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     else:
         device = torch.device(args.device)
 
-    checkpoint_path = Path(args.checkpoint) if args.checkpoint else find_latest_best_pt(cfg["experiment"]["log_dir"])
+    checkpoint_path = Path(args.checkpoint or cfg["deploy"]["checkpoint"])
     print(f"using checkpoint: {checkpoint_path}")
     print(f"using device: {device}")
 
@@ -99,22 +90,26 @@ def main():
             sample = apply_filters(window, cfg) if cfg["collect"].get("apply_filters", False) else window
             is_rest, metrics = is_rest_window(sample, cfg)
             if is_rest:
-                pred = "rest"
+                pred = 0
                 confidence = 1.0
                 probs = np.zeros(cfg["experiment"]["num_classes"], dtype=np.float32)
+                probs[0] = 1.0
             else:
                 pred, confidence, probs = predict_window(model, device, scale_signal(sample, cfg))
             vote_queue.append(pred)
             stable_pred = Counter(vote_queue).most_common(1)[0][0]
             window_index += 1
 
-            probs_str = " ".join(f"{p:.3f}" for p in probs)
-            print(
-                f"window={window_index}, pred={pred}, stable_pred={stable_pred}, "
-                f"conf={confidence:.3f}, probs=[{probs_str}], "
-                f"abs_mean={metrics['abs_mean']:.3f}, rms={metrics['rms']:.3f}, "
-                f"active_channels={metrics['active_channels']}"
-            )
+            if args.legacy_output:
+                print(f"window={window_index}, pred={pred}, stable_pred={stable_pred}")
+            else:
+                probs_str = " ".join(f"{p:.3f}" for p in probs)
+                print(
+                    f"window={window_index}, pred={pred}, stable_pred={stable_pred}, "
+                    f"conf={confidence:.3f}, probs=[{probs_str}], "
+                    f"abs_mean={metrics['abs_mean']:.3f}, rms={metrics['rms']:.3f}, "
+                    f"active_channels={metrics['active_channels']}"
+                )
 
             if window_index >= args.max_windows:
                 break

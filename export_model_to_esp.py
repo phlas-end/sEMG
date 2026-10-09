@@ -26,19 +26,6 @@ class FeatureOnlyDataset(Dataset):
         return self.features[idx]
 
 
-def find_latest_best_pt(log_dir):
-    candidates = []
-    for p in Path(log_dir).iterdir():
-        if not p.is_dir():
-            continue
-        best_pt = p / "checkpoints" / "best.pt"
-        if best_pt.exists():
-            candidates.append(best_pt)
-
-    if not candidates:
-        raise FileNotFoundError(f"no best.pt found under {log_dir}")
-
-    return max(candidates, key=lambda p: p.stat().st_mtime)
 
 
 def build_calibration_dataset(cfg):
@@ -63,7 +50,7 @@ def build_calibration_dataset(cfg):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Export a PyTorch checkpoint to ESPDL.")
-    parser.add_argument("--config", default="config.yaml")
+    parser.add_argument("--config", default=None)
     parser.add_argument("--checkpoint", default=None)
     parser.add_argument("--output", default="./C++/main/models/s3/sEMG.espdl")
     args = parser.parse_args()
@@ -76,10 +63,13 @@ if __name__ == "__main__":
 
     os.makedirs(os.path.dirname(ESPDL_MODEL_PATH), exist_ok=True)
 
-    with open(args.config, "r", encoding="utf-8") as f:
+    with open(args.config or "config.yaml", "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
-
-    checkpoint_path = Path(args.checkpoint) if args.checkpoint else find_latest_best_pt(cfg["experiment"]["log_dir"])
+    checkpoint_path = Path(args.checkpoint or cfg["deploy"]["checkpoint"])
+    paired_config = checkpoint_path.parent / "config.yaml"
+    if not args.config:
+        with paired_config.open("r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f)
     calibration_data = build_calibration_dataset(cfg)
     print(f"Using checkpoint: {checkpoint_path}")
     print(f"Export output: {ESPDL_MODEL_PATH}")

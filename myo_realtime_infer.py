@@ -1,3 +1,4 @@
+from esp32_client import send_sample
 import argparse
 import csv
 import os
@@ -12,7 +13,6 @@ from myo_runtime import MyoEMGCollector
 
 
 def send_window(server_ip, server_port, window):
-    import socket
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((server_ip, server_port))
@@ -40,11 +40,15 @@ def main():
     parser.add_argument("--max-windows", type=int, default=100)
     parser.add_argument("--vote-size", type=int, default=5)
     parser.add_argument("--chunk-seconds", type=float, default=1.0)
+    parser.add_argument("--legacy-output", action="store_true")
+    parser.add_argument("--disable-rest-gate", action="store_true")
     args = parser.parse_args()
 
     with open(args.config, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
     cfg["_config_path"] = os.path.abspath(args.config)
+    if args.disable_rest_gate:
+        cfg.setdefault("deploy", {}).setdefault("rest_gate", {})["enabled"] = False
 
     collector = MyoEMGCollector(cfg)
     print("waiting for Myo connection...")
@@ -71,7 +75,7 @@ def main():
             sample = apply_filters(window, cfg) if cfg["collect"].get("apply_filters", False) else window
             is_rest, metrics = is_rest_window(sample, cfg)
             if is_rest:
-                pred = "rest"
+                pred = 0
             else:
                 pred = send_window(server_ip, server_port, scale_signal(sample, cfg))
 
@@ -79,7 +83,7 @@ def main():
             stable_pred = Counter(vote_queue).most_common(1)[0][0]
             window_index += 1
 
-            if metrics is None:
+            if args.legacy_output or metrics is None:
                 print(f"window={window_index}, pred={pred}, stable_pred={stable_pred}")
             else:
                 print(
