@@ -105,6 +105,6 @@ scripts\esp32.cmd monitor COM10
 
 ## ESP32 后续主线
 
-Gitee 的 `codex/esp32-standalone` 分支保存独立工程，个人私有仓库为 `phlas-end/esp32-standalone`。独立工程包括固件、模型规格、编译/烧录、回放验证和模型导出工具，不带 Myo DLL。
+Gitee 的 `esp32-standalone` 分支保存独立工程，个人私有仓库为 `phlas-end/esp32-standalone`。独立工程包括固件、模型规格、编译/烧录、回放验证和模型导出工具，不带 Myo DLL。
 
 后续按新硬件补齐直接输入、端侧预处理和本地输出；重新核对采样率、单位、电极位置和输入分布。
